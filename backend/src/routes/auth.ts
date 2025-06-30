@@ -9,7 +9,7 @@ import { authenticateToken } from '../middleware/auth';
 const router = Router();
 
 interface AuthRequest extends Request {
-  db: Database;
+  db?: Database;
   userId?: string;
   body: any;
 }
@@ -27,7 +27,10 @@ interface User {
 }
 
 // Função para criar fontes e categorias padrão para um novo usuário
-async function createDefaultSourcesAndCategories(db: any, userId: string) {
+async function createDefaultSourcesAndCategories(userId: string) {
+  const db = global.db;
+  if (!db) throw new Error('Database not available');
+
   try {
     // Copiar fontes de receita padrão
     const defaultSources = await db.all(
@@ -36,185 +39,165 @@ async function createDefaultSourcesAndCategories(db: any, userId: string) {
     
     for (const source of defaultSources) {
       await db.run(
-        `INSERT INTO income_sources (id, user_id, name, type, color, account_code, is_active) 
-         VALUES (?, ?, ?, ?, ?, ?, 1)`,
+        'INSERT INTO income_sources (id, user_id, name, type, color, account_code) VALUES (?, ?, ?, ?, ?, ?)',
         [uuidv4(), userId, source.name, source.type, source.color, source.account_code]
       );
     }
 
     // Copiar categorias de despesa padrão
     const defaultCategories = await db.all(
-      'SELECT name, type, color, icon FROM expense_categories WHERE user_id = "default"'
+      'SELECT name, color, account_code FROM expense_categories WHERE user_id = "default"'
     );
     
     for (const category of defaultCategories) {
       await db.run(
-        `INSERT INTO expense_categories (id, user_id, name, type, color, icon, is_default) 
-         VALUES (?, ?, ?, ?, ?, ?, 0)`,
-        [uuidv4(), userId, category.name, category.type, category.color, category.icon]
+        'INSERT INTO expense_categories (id, user_id, name, color, account_code) VALUES (?, ?, ?, ?, ?)',
+        [uuidv4(), userId, category.name, category.color, category.account_code]
       );
     }
   } catch (error) {
-    console.error('Erro ao criar fontes e categorias padrão:', error);
+    console.error('Erro ao criar dados padrão:', error);
+    throw error;
   }
 }
 
-// POST /api/auth/register
-router.post('/register', async (req: any, res: Response) => {
+// Registro
+router.post('/register', async (req: AuthRequest, res: Response) => {
   try {
+    const db = global.db;
+    if (!db) {
+      return res.status(500).json({ error: 'Database not available' });
+    }
+
     const { name, email, password, companyName, cnpj, businessType } = req.body;
 
     // Validações básicas
     if (!name || !email || !password) {
-      throw createError('Nome, email e senha são obrigatórios', 400);
+      return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
     }
 
-    if (password.length < 6) {
-      throw createError('Senha deve ter pelo menos 6 caracteres', 400);
-    }
-
-    // Verificar se usuário já existe
-    const existingUser = await req.db.get('SELECT id FROM users WHERE email = ?', [email]);
+    // Verificar se o usuário já existe
+    const existingUser = await db.get('SELECT id FROM users WHERE email = ?', [email]);
     if (existingUser) {
-      throw createError('Email já cadastrado', 400);
+      return res.status(409).json({ error: 'Usuário já existe com este email' });
     }
 
     // Hash da senha
     const saltRounds = 10;
-    const passwordHash = await bcrypt.hash(password, saltRounds);
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
 
     // Criar usuário
     const userId = uuidv4();
-    const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`;
-    
-    await req.db.run(
-      `INSERT INTO users (id, name, email, password_hash, company_name, cnpj, business_type, avatar) 
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-      [userId, name, email, passwordHash, companyName, cnpj, businessType, avatar]
+    await db.run(
+      'INSERT INTO users (id, name, email, password_hash, company_name, cnpj, business_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [userId, name, email, hashedPassword, companyName, cnpj, businessType, new Date().toISOString()]
     );
 
-    // Criar fontes e categorias padrão para o novo usuário
-    await createDefaultSourcesAndCategories(req.db, userId);
-
     // Criar fontes e categorias padrão
-    await createDefaultSourcesAndCategories(req.db, userId);
+    await createDefaultSourcesAndCategories(userId);
 
     // Gerar token JWT
     const token = jwt.sign(
       { userId, email },
       process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '30d' }
+      { expiresIn: '7d' }
     );
 
-    // Retornar dados do usuário (sem senha)
-    const user = {
-      id: userId,
-      name,
-      email,
-      companyName,
-      cnpj,
-      businessType,
-      avatar,
-      createdAt: new Date().toISOString()
-    };
+    // Buscar o usuário criado
+    const user = await db.get(
+      'SELECT id, name, email, company_name as companyName, cnpj, business_type as businessType FROM users WHERE id = ?',
+      [userId]
+    );
 
-    res.status(201).json({ 
-      success: true,
+    res.status(201).json({
+      message: 'Usuário registrado com sucesso',
       user,
-      token 
+      token
     });
+
   } catch (error) {
-    throw error;
+    console.error('Erro no registro:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 
-// POST /api/auth/login
-router.post('/login', async (req: any, res: Response) => {
+// Login
+router.post('/login', async (req: AuthRequest, res: Response) => {
   try {
+    const db = global.db;
+    if (!db) {
+      return res.status(500).json({ error: 'Database not available' });
+    }
+
     const { email, password } = req.body;
 
-    // Validações básicas
     if (!email || !password) {
-      throw createError('Email e senha são obrigatórios', 400);
+      return res.status(400).json({ error: 'Email e senha são obrigatórios' });
     }
 
     // Buscar usuário
-    const user = await req.db.get(
-      'SELECT * FROM users WHERE email = ?',
-      [email]
-    ) as User;
-
+    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]) as User;
     if (!user) {
-      throw createError('Credenciais inválidas', 401);
+      return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
     // Verificar senha
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
-      throw createError('Credenciais inválidas', 401);
+      return res.status(401).json({ error: 'Credenciais inválidas' });
     }
 
     // Gerar token JWT
     const token = jwt.sign(
       { userId: user.id, email: user.email },
       process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '30d' }
+      { expiresIn: '7d' }
     );
 
     // Retornar dados do usuário (sem senha)
-    const userData = {
+    const userResponse = {
       id: user.id,
       name: user.name,
       email: user.email,
       companyName: user.company_name,
       cnpj: user.cnpj,
-      businessType: user.business_type,
-      avatar: user.avatar,
-      createdAt: user.created_at
+      businessType: user.business_type
     };
 
-    res.json({ 
-      success: true,
-      user: userData,
-      token 
+    res.json({
+      message: 'Login realizado com sucesso',
+      user: userResponse,
+      token
     });
+
   } catch (error) {
-    throw error;
+    console.error('Erro no login:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 
-// GET /api/auth/me
-router.get('/me', authenticateToken, async (req: any, res: Response) => {
+// Obter dados do usuário atual
+router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
   try {
-    const userId = req.userId;
-
-    const user = await req.db.get(
-      'SELECT * FROM users WHERE id = ?',
-      [userId]
-    ) as User;
-
-    if (!user) {
-      throw createError('Usuário não encontrado', 404);
+    const db = global.db;
+    if (!db) {
+      return res.status(500).json({ error: 'Database not available' });
     }
 
-    // Retornar dados do usuário (sem senha)
-    const userData = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      companyName: user.company_name,
-      cnpj: user.cnpj,
-      businessType: user.business_type,
-      avatar: user.avatar,
-      createdAt: user.created_at
-    };
+    const user = await db.get(
+      'SELECT id, name, email, company_name as companyName, cnpj, business_type as businessType FROM users WHERE id = ?',
+      [req.userId]
+    );
 
-    res.json({ 
-      success: true,
-      user: userData 
-    });
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+
+    res.json({ user });
+
   } catch (error) {
-    throw error;
+    console.error('Erro ao buscar usuário:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 

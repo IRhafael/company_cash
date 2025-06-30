@@ -70,6 +70,7 @@ app.use('*', (req, res) => {
 async function startServer() {
   try {
     db = await initializeDatabase();
+    global.db = db; // Disponibilizar globalmente para evitar dependência circular
     logger.info('Base de dados inicializada com sucesso');
     
     app.listen(PORT, () => {

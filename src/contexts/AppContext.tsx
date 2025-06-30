@@ -7,7 +7,8 @@ import {
   IncomeSource, 
   ExpenseCategory,
   FinancialSummary,
-  MonthlyData 
+  MonthlyData,
+  Barter
 } from '@/types';
 import api from '@/services/api';
 
@@ -19,6 +20,7 @@ interface AppState {
   taxObligations: TaxObligation[];
   incomeSources: IncomeSource[];
   expenseCategories: ExpenseCategory[];
+  barters: Barter[];
   financialSummary: FinancialSummary | null;
   monthlyData: MonthlyData[];
   isLoading: boolean;
@@ -55,6 +57,7 @@ const initialState: AppState = {
   taxObligations: [],
   incomeSources: [],
   expenseCategories: [],
+  barters: [],
   financialSummary: null,
   monthlyData: [],
   isLoading: false,

@@ -54,6 +54,7 @@ app.use('*', (req, res) => {
 async function startServer() {
     try {
         exports.db = await (0, init_1.initializeDatabase)();
+        global.db = exports.db;
         logger_1.logger.info('Base de dados inicializada com sucesso');
         app.listen(PORT, () => {
             logger_1.logger.info(`Servidor rodando na porta ${PORT}`);

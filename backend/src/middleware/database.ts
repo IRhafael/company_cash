@@ -1,7 +1,11 @@
 import { Request, Response, NextFunction } from 'express';
-import { db } from '../server';
+
+// Vamos buscar o db de um global em vez de uma importação circular
+declare global {
+  var db: any;
+}
 
 export const attachDatabase = (req: any, res: Response, next: NextFunction) => {
-  req.db = db;
+  req.db = global.db;
   next();
 };

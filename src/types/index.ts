@@ -32,6 +32,8 @@ export interface Income {
   invoiceNumber?: string;
   taxAmount?: number; // Impostos
   netAmount?: number; // Valor líquido
+  projectName?: string; // Nome do projeto/serviço
+  campaignName?: string; // Nome da campanha ou iniciativa
 }
 
 export interface ExpenseCategory {
@@ -51,7 +53,7 @@ export interface Expense {
   date: Date;
   categoryId: string;
   category: ExpenseCategory;
-  type: 'deductible' | 'non_deductible'; // Dedutível ou não dedutível
+  type: 'pessoal' | 'profissional' | 'deductible' | 'non_deductible'; // Tipo para compatibilidade
   isRecurring: boolean;
   tags?: string[];
   receiptUrl?: string;
@@ -59,6 +61,7 @@ export interface Expense {
   invoiceNumber?: string;
   dueDate?: Date;
   paymentStatus: 'pago' | 'pendente' | 'vencido';
+  projectName?: string; // Nome do projeto
 }
 
 export interface TaxObligation {
@@ -113,4 +116,16 @@ export interface ReportMetrics {
     cost: number;
     roi: number;
   }>;
+}
+
+// Interface para permutas/escambos
+export interface Barter {
+  id: string;
+  description: string;
+  valueGiven: number;
+  valueReceived: number;
+  date: Date;
+  partnerName: string;
+  category: string;
+  status: 'concluido' | 'pendente' | 'cancelado';
 }

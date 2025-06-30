@@ -22,7 +22,7 @@ const expenseSchema = z.object({
   amount: z.number().min(0.01, 'Valor deve ser maior que zero'),
   date: z.string().min(1, 'Data é obrigatória'),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
-  type: z.enum(['pessoal', 'profissional']),
+  type: z.enum(['pessoal', 'profissional', 'deductible', 'non_deductible']),
   isRecurring: z.boolean().default(false),
   projectName: z.string().optional(),
   tags: z.string().optional(),
@@ -65,6 +65,7 @@ export const Despesas: React.FC = () => {
       projectName: data.projectName,
       tags: data.tags ? data.tags.split(',').map(tag => tag.trim()) : undefined,
       receiptUrl: data.receiptUrl,
+      paymentStatus: 'pago', // Valor padrão
     };
 
     if (editingExpense) {

@@ -252,7 +252,7 @@ export const Receitas: React.FC = () => {
                   <Label htmlFor="projectName">Nome do Projeto (opcional)</Label>
                   <Input
                     id="projectName"
-                    placeholder="Ex: Série de JavaScript"
+                    placeholder="Ex: Consultoria Empresarial Cliente XYZ"
                     {...register('projectName')}
                   />
                 </div>
@@ -261,7 +261,7 @@ export const Receitas: React.FC = () => {
                   <Label htmlFor="campaignName">Nome da Campanha (opcional)</Label>
                   <Input
                     id="campaignName"
-                    placeholder="Ex: Black Friday 2024"
+                    placeholder="Ex: Promoção Abertura de Empresas"
                     {...register('campaignName')}
                   />
                 </div>
