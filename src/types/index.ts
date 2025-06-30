@@ -3,17 +3,19 @@ export interface User {
   name: string;
   email: string;
   avatar?: string;
-  channelName?: string;
-  niche?: string;
+  companyName?: string;
+  cnpj?: string;
+  role?: 'contador' | 'admin' | 'cliente';
   createdAt: Date;
 }
 
 export interface IncomeSource {
   id: string;
   name: string;
-  platform: 'youtube' | 'twitch' | 'hotmart' | 'afiliados' | 'patrocinio' | 'cursos' | 'outros';
+  type: 'vendas' | 'servicos' | 'financeiro' | 'operacional' | 'extraordinario' | 'outros';
   isActive: boolean;
   color: string;
+  accountCode?: string; // Código do plano de contas
 }
 
 export interface Income {
@@ -25,8 +27,10 @@ export interface Income {
   source: IncomeSource;
   type: 'recorrente' | 'unico';
   status: 'confirmado' | 'pendente' | 'cancelado';
-  projectName?: string;
-  campaignName?: string;
+  clientName?: string;
+  invoiceNumber?: string;
+  taxAmount?: number; // Impostos
+  netAmount?: number; // Valor líquido
 }
 
 export interface ExpenseCategory {
@@ -35,6 +39,8 @@ export interface ExpenseCategory {
   color: string;
   icon: string;
   isDefault: boolean;
+  type: 'operacional' | 'administrativa' | 'tributaria' | 'financeira' | 'investimento';
+  accountCode?: string; // Código do plano de contas
 }
 
 export interface Expense {
@@ -44,22 +50,26 @@ export interface Expense {
   date: Date;
   categoryId: string;
   category: ExpenseCategory;
-  type: 'pessoal' | 'profissional';
+  type: 'deductible' | 'non_deductible'; // Dedutível ou não dedutível
   isRecurring: boolean;
   tags?: string[];
   receiptUrl?: string;
-  projectName?: string;
+  supplierName?: string;
+  invoiceNumber?: string;
+  dueDate?: Date;
+  paymentStatus: 'pago' | 'pendente' | 'vencido';
 }
 
-export interface Barter {
+export interface TaxObligation {
   id: string;
   description: string;
-  estimatedValue: number;
-  date: Date;
-  brand: string;
-  type: 'produto' | 'servico';
-  status: 'recebido' | 'pendente' | 'cancelado';
+  amount: number;
+  dueDate: Date;
+  taxType: 'IRPJ' | 'CSLL' | 'PIS' | 'COFINS' | 'ICMS' | 'ISS' | 'INSS' | 'FGTS' | 'outros';
+  status: 'pago' | 'pendente' | 'vencido';
+  referenceMonth: string; // MM/YYYY
   notes?: string;
+  complianceDate?: Date;
 }
 
 export interface FinancialSummary {

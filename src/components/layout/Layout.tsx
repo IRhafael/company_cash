@@ -5,7 +5,7 @@ import {
   TrendingUp, 
   TrendingDown, 
   BarChart3, 
-  Gift, 
+  Receipt, 
   Settings, 
   Monitor,
   User,
@@ -26,7 +26,7 @@ const navigation = [
   { name: 'Dashboard', href: '/', icon: LayoutDashboard },
   { name: 'Receitas', href: '/receitas', icon: TrendingUp },
   { name: 'Despesas', href: '/despesas', icon: TrendingDown },
-  { name: 'Permutas', href: '/permutas', icon: Gift },
+  { name: 'Obrigações Tributárias', href: '/obrigacoes-tributarias', icon: Receipt },
   { name: 'Relatórios', href: '/relatorios', icon: BarChart3 },
 ];
 
@@ -62,7 +62,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
               <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-2">
                 <Monitor className="h-5 w-5 text-white" />
               </div>
-              <span className="font-bold text-lg">CreatorCash</span>
+              <span className="font-bold text-lg">CompanyCash</span>
             </div>
             <Button variant="ghost" size="sm" onClick={() => setSidebarOpen(false)}>
               <X className="h-5 w-5" />
@@ -78,7 +78,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
           <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-lg p-2">
             <Monitor className="h-6 w-6 text-white" />
           </div>
-          <span className="font-bold text-xl">CreatorCash</span>
+          <span className="font-bold text-xl">CompanyCash</span>
         </div>
         <SidebarContent isActive={isActive} />
       </nav>
@@ -109,7 +109,7 @@ export const Layout: React.FC<LayoutProps> = ({ children }) => {
                 </Avatar>
                 <div className="hidden sm:block">
                   <p className="text-sm font-medium text-gray-900">{user?.name}</p>
-                  <p className="text-xs text-gray-500">{user?.channelName || user?.email}</p>
+                  <p className="text-xs text-gray-500">{user?.email}</p>
                 </div>
               </div>
               
@@ -176,7 +176,7 @@ const SidebarContent: React.FC<SidebarContentProps> = ({ isActive, onNavigate })
               {user?.name}
             </p>
             <p className="text-xs text-gray-500 truncate">
-              {user?.niche || 'Criador de Conteúdo'}
+              {'Contador Empresarial'}
             </p>
           </div>
         </div>

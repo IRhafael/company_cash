@@ -3,7 +3,7 @@ import {
   User, 
   Income, 
   Expense, 
-  Barter, 
+  TaxObligation, 
   IncomeSource, 
   ExpenseCategory,
   FinancialSummary,
@@ -15,7 +15,7 @@ interface AppState {
   isAuthenticated: boolean;
   incomes: Income[];
   expenses: Expense[];
-  barters: Barter[];
+  taxObligations: TaxObligation[];
   incomeSources: IncomeSource[];
   expenseCategories: ExpenseCategory[];
   financialSummary: FinancialSummary | null;
@@ -32,38 +32,37 @@ type AppAction =
   | { type: 'ADD_EXPENSE'; payload: Expense }
   | { type: 'UPDATE_EXPENSE'; payload: Expense }
   | { type: 'DELETE_EXPENSE'; payload: string }
-  | { type: 'ADD_BARTER'; payload: Barter }
-  | { type: 'UPDATE_BARTER'; payload: Barter }
-  | { type: 'DELETE_BARTER'; payload: string }
+  | { type: 'ADD_TAX_OBLIGATION'; payload: TaxObligation }
+  | { type: 'UPDATE_TAX_OBLIGATION'; payload: TaxObligation }
+  | { type: 'DELETE_TAX_OBLIGATION'; payload: string }
   | { type: 'SET_FINANCIAL_SUMMARY'; payload: FinancialSummary }
   | { type: 'SET_MONTHLY_DATA'; payload: MonthlyData[] }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'LOAD_DATA'; payload: { incomes: Income[]; expenses: Expense[]; barters: Barter[] } };
+  | { type: 'LOAD_DATA'; payload: { incomes: Income[]; expenses: Expense[]; taxObligations: TaxObligation[] } };
 
 const initialState: AppState = {
   user: null,
   isAuthenticated: false,
   incomes: [],
   expenses: [],
-  barters: [],
+  taxObligations: [],
   incomeSources: [
-    { id: '1', name: 'YouTube AdSense', platform: 'youtube', isActive: true, color: '#FF0000' },
-    { id: '2', name: 'Twitch', platform: 'twitch', isActive: true, color: '#9146FF' },
-    { id: '3', name: 'Hotmart', platform: 'hotmart', isActive: true, color: '#00D4AA' },
-    { id: '4', name: 'Afiliações', platform: 'afiliados', isActive: true, color: '#F59E0B' },
-    { id: '5', name: 'Patrocínios', platform: 'patrocinio', isActive: true, color: '#8B5CF6' },
-    { id: '6', name: 'Cursos Próprios', platform: 'cursos', isActive: true, color: '#06B6D4' },
-    { id: '7', name: 'Outros', platform: 'outros', isActive: true, color: '#6B7280' }
+    { id: '1', name: 'Vendas de Produtos', type: 'vendas', isActive: true, color: '#10B981', accountCode: '3.1.1' },
+    { id: '2', name: 'Prestação de Serviços', type: 'servicos', isActive: true, color: '#3B82F6', accountCode: '3.1.2' },
+    { id: '3', name: 'Receitas Financeiras', type: 'financeiro', isActive: true, color: '#F59E0B', accountCode: '3.2.1' },
+    { id: '4', name: 'Outras Receitas Operacionais', type: 'operacional', isActive: true, color: '#8B5CF6', accountCode: '3.1.9' },
+    { id: '5', name: 'Receitas Extraordinárias', type: 'extraordinario', isActive: true, color: '#EF4444', accountCode: '3.3.1' },
+    { id: '6', name: 'Outros', type: 'outros', isActive: true, color: '#6B7280', accountCode: '3.9.9' }
   ],
   expenseCategories: [
-    { id: '1', name: 'Software e Assinaturas', color: '#3B82F6', icon: 'Monitor', isDefault: true },
-    { id: '2', name: 'Equipamentos', color: '#10B981', icon: 'Camera', isDefault: true },
-    { id: '3', name: 'Marketing e Publicidade', color: '#F59E0B', icon: 'Megaphone', isDefault: true },
-    { id: '4', name: 'Educação e Cursos', color: '#8B5CF6', icon: 'GraduationCap', isDefault: true },
-    { id: '5', name: 'Freelancers e Colaboradores', color: '#EF4444', icon: 'Users', isDefault: true },
-    { id: '6', name: 'Transporte e Viagem', color: '#06B6D4', icon: 'Car', isDefault: true },
-    { id: '7', name: 'Alimentação', color: '#84CC16', icon: 'UtensilsCrossed', isDefault: false },
-    { id: '8', name: 'Outros', color: '#6B7280', icon: 'MoreHorizontal', isDefault: true }
+    { id: '1', name: 'Salários e Encargos', color: '#3B82F6', icon: 'Users', isDefault: true, type: 'operacional', accountCode: '4.1.1' },
+    { id: '2', name: 'Aluguel e Condomínio', color: '#10B981', icon: 'Building', isDefault: true, type: 'operacional', accountCode: '4.1.2' },
+    { id: '3', name: 'Serviços de Terceiros', color: '#F59E0B', icon: 'Handshake', isDefault: true, type: 'operacional', accountCode: '4.1.3' },
+    { id: '4', name: 'Material de Escritório', color: '#8B5CF6', icon: 'FileText', isDefault: true, type: 'administrativa', accountCode: '4.2.1' },
+    { id: '5', name: 'Despesas Tributárias', color: '#EF4444', icon: 'Receipt', isDefault: true, type: 'tributaria', accountCode: '4.3.1' },
+    { id: '6', name: 'Despesas Financeiras', color: '#06B6D4', icon: 'CreditCard', isDefault: true, type: 'financeira', accountCode: '4.4.1' },
+    { id: '7', name: 'Investimentos', color: '#84CC16', icon: 'TrendingUp', isDefault: false, type: 'investimento', accountCode: '4.5.1' },
+    { id: '8', name: 'Outros', color: '#6B7280', icon: 'MoreHorizontal', isDefault: true, type: 'operacional', accountCode: '4.9.9' }
   ],
   financialSummary: null,
   monthlyData: [],
@@ -112,21 +111,21 @@ function appReducer(state: AppState, action: AppAction): AppState {
         expenses: state.expenses.filter(expense => expense.id !== action.payload)
       };
     
-    case 'ADD_BARTER':
-      return { ...state, barters: [...state.barters, action.payload] };
+    case 'ADD_TAX_OBLIGATION':
+      return { ...state, taxObligations: [...state.taxObligations, action.payload] };
     
-    case 'UPDATE_BARTER':
+    case 'UPDATE_TAX_OBLIGATION':
       return {
         ...state,
-        barters: state.barters.map(barter => 
-          barter.id === action.payload.id ? action.payload : barter
+        taxObligations: state.taxObligations.map(obligation => 
+          obligation.id === action.payload.id ? action.payload : obligation
         )
       };
     
-    case 'DELETE_BARTER':
+    case 'DELETE_TAX_OBLIGATION':
       return {
         ...state,
-        barters: state.barters.filter(barter => barter.id !== action.payload)
+        taxObligations: state.taxObligations.filter(obligation => obligation.id !== action.payload)
       };
     
     case 'SET_FINANCIAL_SUMMARY':
@@ -143,7 +142,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         incomes: action.payload.incomes,
         expenses: action.payload.expenses,
-        barters: action.payload.barters
+        taxObligations: action.payload.taxObligations
       };
     
     default:
@@ -172,49 +171,49 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   // Carregar dados do localStorage na inicialização
   useEffect(() => {
-    const userData = localStorage.getItem('creatorCash_user');
-    const incomesData = localStorage.getItem('creatorCash_incomes');
-    const expensesData = localStorage.getItem('creatorCash_expenses');
-    const bartersData = localStorage.getItem('creatorCash_barters');
+    const userData = localStorage.getItem('companyCash_user');
+    const incomesData = localStorage.getItem('companyCash_incomes');
+    const expensesData = localStorage.getItem('companyCash_expenses');
+    const taxObligationsData = localStorage.getItem('companyCash_taxObligations');
 
     if (userData) {
       const user = JSON.parse(userData);
       dispatch({ type: 'SET_USER', payload: user });
     }
 
-    if (incomesData || expensesData || bartersData) {
+    if (incomesData || expensesData || taxObligationsData) {
       const incomes = incomesData ? JSON.parse(incomesData) : [];
       const expenses = expensesData ? JSON.parse(expensesData) : [];
-      const barters = bartersData ? JSON.parse(bartersData) : [];
+      const taxObligations = taxObligationsData ? JSON.parse(taxObligationsData) : [];
       
-      dispatch({ type: 'LOAD_DATA', payload: { incomes, expenses, barters } });
+      dispatch({ type: 'LOAD_DATA', payload: { incomes, expenses, taxObligations } });
     }
   }, []);
 
   // Salvar dados no localStorage quando mudarem
   useEffect(() => {
     if (state.user) {
-      localStorage.setItem('creatorCash_user', JSON.stringify(state.user));
+      localStorage.setItem('companyCash_user', JSON.stringify(state.user));
     }
   }, [state.user]);
 
   useEffect(() => {
     if (state.incomes.length > 0) {
-      localStorage.setItem('creatorCash_incomes', JSON.stringify(state.incomes));
+      localStorage.setItem('companyCash_incomes', JSON.stringify(state.incomes));
     }
   }, [state.incomes]);
 
   useEffect(() => {
     if (state.expenses.length > 0) {
-      localStorage.setItem('creatorCash_expenses', JSON.stringify(state.expenses));
+      localStorage.setItem('companyCash_expenses', JSON.stringify(state.expenses));
     }
   }, [state.expenses]);
 
   useEffect(() => {
-    if (state.barters.length > 0) {
-      localStorage.setItem('creatorCash_barters', JSON.stringify(state.barters));
+    if (state.taxObligations.length > 0) {
+      localStorage.setItem('companyCash_taxObligations', JSON.stringify(state.taxObligations));
     }
-  }, [state.barters]);
+  }, [state.taxObligations]);
 
   return (
     <AppContext.Provider value={{ state, dispatch }}>

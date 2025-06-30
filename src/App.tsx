@@ -6,18 +6,15 @@ import { Layout } from '@/components/layout/Layout';
 import { Dashboard } from '@/pages/Dashboard';
 import { Receitas } from '@/pages/Receitas';
 import { Despesas } from '@/pages/Despesas';
-import { Permutas } from '@/pages/Permutas';
+import { ObrigacoesTributarias } from '@/pages/ObrigacoesTributarias';
 import { Relatorios } from '@/pages/Relatorios';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
-import { useSampleData } from '@/hooks/useSampleData';
 import { Toaster } from 'sonner';
 
 const AppContent: React.FC = () => {
   const { state } = useAppContext();
   const { isAuthenticated } = state;
   
-  // Carregar dados de exemplo quando autenticado
-  useSampleData();
 
   if (!isAuthenticated) {
     return <AuthForm />;
@@ -29,7 +26,7 @@ const AppContent: React.FC = () => {
         <Route path="/" element={<Dashboard />} />
         <Route path="/receitas" element={<Receitas />} />
         <Route path="/despesas" element={<Despesas />} />
-        <Route path="/permutas" element={<Permutas />} />
+        <Route path="/obrigacoes-tributarias" element={<ObrigacoesTributarias />} />
         <Route path="/relatorios" element={<Relatorios />} />
       </Routes>
     </Layout>
