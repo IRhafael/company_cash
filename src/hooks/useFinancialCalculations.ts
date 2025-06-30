@@ -9,60 +9,66 @@ export const useFinancialCalculations = () => {
   const { incomes, expenses, barters, incomeSources, expenseCategories } = state;
 
   const financialSummary = useMemo((): FinancialSummary | null => {
-    if (incomes.length === 0 && expenses.length === 0) return null;
+    // Garantir que os arrays existem antes de usar
+    const safeIncomes = Array.isArray(incomes) ? incomes : [];
+    const safeExpenses = Array.isArray(expenses) ? expenses : [];
+    const safeIncomeSources = Array.isArray(incomeSources) ? incomeSources : [];
+    const safeExpenseCategories = Array.isArray(expenseCategories) ? expenseCategories : [];
 
-    const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
-    const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
+    if (safeIncomes.length === 0 && safeExpenses.length === 0) return null;
+
+    const totalIncome = safeIncomes.reduce((sum, income) => sum + income.amount, 0);
+    const totalExpenses = safeExpenses.reduce((sum, expense) => sum + expense.amount, 0);
     const netProfit = totalIncome - totalExpenses;
     const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
 
     // Agrupar receitas por fonte
-    const incomeBySource = incomes.reduce((acc, income) => {
+    const incomeBySource = safeIncomes.reduce((acc, income) => {
       acc[income.sourceId] = (acc[income.sourceId] || 0) + income.amount;
       return acc;
     }, {} as Record<string, number>);
 
     const topIncomeSourceId = Object.entries(incomeBySource)
       .sort(([,a], [,b]) => b - a)[0]?.[0];
-    const topIncomeSource = incomeSources.find(source => source.id === topIncomeSourceId) || incomeSources[0];
+    const topIncomeSource = safeIncomeSources.find(source => source.id === topIncomeSourceId) || safeIncomeSources[0];
 
     // Agrupar despesas por categoria
-    const expenseByCategory = expenses.reduce((acc, expense) => {
+    const expenseByCategory = safeExpenses.reduce((acc, expense) => {
       acc[expense.categoryId] = (acc[expense.categoryId] || 0) + expense.amount;
       return acc;
     }, {} as Record<string, number>);
 
     const topExpenseCategoryId = Object.entries(expenseByCategory)
       .sort(([,a], [,b]) => b - a)[0]?.[0];
-    const topExpenseCategory = expenseCategories.find(cat => cat.id === topExpenseCategoryId) || expenseCategories[0];
+    const topExpenseCategory = safeExpenseCategories.find(cat => cat.id === topExpenseCategoryId) || safeExpenseCategories[0];
 
     // Calcular crescimento comparando com o mês anterior
     const currentMonth = new Date();
     const lastMonth = subMonths(currentMonth, 1);
     
-    const currentMonthIncomes = incomes.filter(income => 
-      isWithinInterval(income.date, {
+    const currentMonthIncomes = safeIncomes.filter(income => 
+      isWithinInterval(new Date(income.date), {
         start: startOfMonth(currentMonth),
         end: endOfMonth(currentMonth)
       })
     );
     
-    const lastMonthIncomes = incomes.filter(income => 
-      isWithinInterval(income.date, {
+    const lastMonthIncomes = safeIncomes.filter(income => 
+      isWithinInterval(new Date(income.date), {
         start: startOfMonth(lastMonth),
         end: endOfMonth(lastMonth)
       })
     );
 
-    const currentMonthExpenses = expenses.filter(expense => 
-      isWithinInterval(expense.date, {
+    const currentMonthExpenses = safeExpenses.filter(expense => 
+      isWithinInterval(new Date(expense.date), {
         start: startOfMonth(currentMonth),
         end: endOfMonth(currentMonth)
       })
     );
     
-    const lastMonthExpenses = expenses.filter(expense => 
-      isWithinInterval(expense.date, {
+    const lastMonthExpenses = safeExpenses.filter(expense => 
+      isWithinInterval(new Date(expense.date), {
         start: startOfMonth(lastMonth),
         end: endOfMonth(lastMonth)
       })
@@ -93,6 +99,9 @@ export const useFinancialCalculations = () => {
   }, [incomes, expenses, incomeSources, expenseCategories]);
 
   const monthlyData = useMemo((): MonthlyData[] => {
+    const safeIncomes = Array.isArray(incomes) ? incomes : [];
+    const safeExpenses = Array.isArray(expenses) ? expenses : [];
+    
     const months: MonthlyData[] = [];
     const currentDate = new Date();
     
@@ -101,12 +110,12 @@ export const useFinancialCalculations = () => {
       const monthStart = startOfMonth(date);
       const monthEnd = endOfMonth(date);
       
-      const monthIncomes = incomes.filter(income => 
-        isWithinInterval(income.date, { start: monthStart, end: monthEnd })
+      const monthIncomes = safeIncomes.filter(income => 
+        isWithinInterval(new Date(income.date), { start: monthStart, end: monthEnd })
       );
       
-      const monthExpenses = expenses.filter(expense => 
-        isWithinInterval(expense.date, { start: monthStart, end: monthEnd })
+      const monthExpenses = safeExpenses.filter(expense => 
+        isWithinInterval(new Date(expense.date), { start: monthStart, end: monthEnd })
       );
       
       const income = monthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
@@ -124,37 +133,43 @@ export const useFinancialCalculations = () => {
   }, [incomes, expenses]);
 
   const reportMetrics = useMemo((): ReportMetrics => {
+    const safeIncomes = Array.isArray(incomes) ? incomes : [];
+    const safeExpenses = Array.isArray(expenses) ? expenses : [];
+    const safeIncomeSources = Array.isArray(incomeSources) ? incomeSources : [];
+    
     // Calcular custo por projeto
-    const projectExpenses = expenses.filter(expense => expense.projectName);
+    const projectExpenses = safeExpenses.filter(expense => expense.projectName);
     const projectsCount = new Set(projectExpenses.map(expense => expense.projectName)).size;
     const costPerProject = projectsCount > 0 ? 
       projectExpenses.reduce((sum, expense) => sum + expense.amount, 0) / projectsCount : 0;
 
     // ROI por fonte
     const roiBySource: Record<string, number> = {};
-    incomeSources.forEach(source => {
-      const sourceIncomes = incomes.filter(income => income.sourceId === source.id);
+    safeIncomeSources.forEach(source => {
+      const sourceIncomes = safeIncomes.filter(income => income.sourceId === source.id);
       const sourceRevenue = sourceIncomes.reduce((sum, income) => sum + income.amount, 0);
       
       // Estimar despesas relacionadas à fonte (aproximação)
-      const sourceCosts = expenses.filter(expense => 
-        expense.category.name.includes('Marketing') || 
-        expense.category.name.includes('Software')
-      ).reduce((sum, expense) => sum + expense.amount, 0) / incomeSources.length;
+      const sourceCosts = safeExpenses.filter(expense => 
+        expense.categoryId && (
+          expense.categoryId.includes('marketing') || 
+          expense.categoryId.includes('software')
+        )
+      ).reduce((sum, expense) => sum + expense.amount, 0) / safeIncomeSources.length;
       
       roiBySource[source.name] = sourceCosts > 0 ? ((sourceRevenue - sourceCosts) / sourceCosts) * 100 : 0;
     });
 
     // Pessoal vs Profissional
-    const personalExpenses = expenses.filter(expense => expense.type === 'pessoal')
+    const personalExpenses = safeExpenses.filter(expense => expense.type === 'pessoal')
       .reduce((sum, expense) => sum + expense.amount, 0);
-    const professionalExpenses = expenses.filter(expense => expense.type === 'profissional')
+    const professionalExpenses = safeExpenses.filter(expense => expense.type === 'profissional')
       .reduce((sum, expense) => sum + expense.amount, 0);
 
     // Top projetos
     const projectStats: Record<string, { revenue: number; cost: number }> = {};
     
-    incomes.forEach(income => {
+    safeIncomes.forEach(income => {
       if (income.projectName) {
         if (!projectStats[income.projectName]) {
           projectStats[income.projectName] = { revenue: 0, cost: 0 };
@@ -163,7 +178,7 @@ export const useFinancialCalculations = () => {
       }
     });
 
-    expenses.forEach(expense => {
+    safeExpenses.forEach(expense => {
       if (expense.projectName && projectStats[expense.projectName]) {
         projectStats[expense.projectName].cost += expense.amount;
       }

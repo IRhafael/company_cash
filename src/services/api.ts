@@ -28,26 +28,46 @@ async function apiRequest<T>(
     ...options,
   };
 
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+  try {
+    const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(error || 'Erro na requisição');
+    // Se não autorizado, limpar token e redirecionar
+    if (response.status === 401) {
+      localStorage.removeItem('companyCash_token');
+      localStorage.removeItem('companyCash_user');
+      window.location.href = '/';
+      throw new Error('Sessão expirada. Faça login novamente.');
+    }
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({ error: 'Erro na requisição' }));
+      throw new Error(errorData.error || `Erro ${response.status}: ${response.statusText}`);
+    }
+
+    // Verificar se a resposta tem conteúdo
+    const contentType = response.headers.get('content-type');
+    if (contentType && contentType.includes('application/json')) {
+      return response.json();
+    } else {
+      return {} as T; // Para DELETE requests que não retornam conteúdo
+    }
+  } catch (error) {
+    console.error(`Erro na API ${endpoint}:`, error);
+    throw error;
   }
-
-  return response.json();
 }
 
 // Auth API
 export const authAPI = {
-  async login(email: string, password: string): Promise<{ user: User; token: string }> {
-    const response = await apiRequest<{ user: User; token: string }>('/auth/login', {
+  async login(email: string, password: string): Promise<{ user: User; token: string; message: string }> {
+    const response = await apiRequest<{ user: User; token: string; message: string }>('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
     
-    // Salvar token no localStorage
+    // Salvar token e usuário no localStorage
     localStorage.setItem('companyCash_token', response.token);
+    localStorage.setItem('companyCash_user', JSON.stringify(response.user));
     return response;
   },
 
@@ -56,14 +76,17 @@ export const authAPI = {
     email: string;
     password: string;
     companyName: string;
+    businessType: string;
     cnpj?: string;
-  }): Promise<{ user: User; token: string }> {
-    const response = await apiRequest<{ user: User; token: string }>('/auth/register', {
+  }): Promise<{ user: User; token: string; message: string }> {
+    const response = await apiRequest<{ user: User; token: string; message: string }>('/auth/register', {
       method: 'POST',
       body: JSON.stringify(userData),
     });
     
+    // Salvar token e usuário no localStorage
     localStorage.setItem('companyCash_token', response.token);
+    localStorage.setItem('companyCash_user', JSON.stringify(response.user));
     return response;
   },
 
@@ -72,8 +95,40 @@ export const authAPI = {
     localStorage.removeItem('companyCash_user');
   },
 
-  async getCurrentUser(): Promise<User> {
-    return apiRequest<User>('/auth/me');
+  async getCurrentUser(): Promise<{ user: User }> {
+    return apiRequest<{ user: User }>('/auth/me');
+  },
+};
+
+// Income Sources API
+export const incomeSourceAPI = {
+  async getAll(): Promise<IncomeSource[]> {
+    return apiRequest<IncomeSource[]>('/income-sources');
+  },
+
+  async create(source: {
+    name: string;
+    type: string;
+    color: string;
+    accountCode?: string;
+  }): Promise<IncomeSource> {
+    return apiRequest<IncomeSource>('/income-sources', {
+      method: 'POST',
+      body: JSON.stringify(source),
+    });
+  },
+
+  async update(id: string, source: Partial<IncomeSource>): Promise<IncomeSource> {
+    return apiRequest<IncomeSource>(`/income-sources/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(source),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    return apiRequest<void>(`/income-sources/${id}`, {
+      method: 'DELETE',
+    });
   },
 };
 
@@ -83,7 +138,16 @@ export const incomeAPI = {
     return apiRequest<Income[]>('/incomes');
   },
 
-  async create(income: Omit<Income, 'id' | 'createdAt' | 'updatedAt'>): Promise<Income> {
+  async create(income: {
+    description: string;
+    amount: number;
+    date: string;
+    sourceId: string;
+    type: 'recorrente' | 'unico';
+    status: 'confirmado' | 'pendente' | 'cancelado';
+    projectName?: string;
+    campaignName?: string;
+  }): Promise<Income> {
     return apiRequest<Income>('/incomes', {
       method: 'POST',
       body: JSON.stringify(income),
@@ -104,13 +168,52 @@ export const incomeAPI = {
   },
 };
 
+// Expense Categories API
+export const expenseCategoryAPI = {
+  async getAll(): Promise<ExpenseCategory[]> {
+    return apiRequest<ExpenseCategory[]>('/expense-categories');
+  },
+
+  async create(category: {
+    name: string;
+    color: string;
+    accountCode?: string;
+  }): Promise<ExpenseCategory> {
+    return apiRequest<ExpenseCategory>('/expense-categories', {
+      method: 'POST',
+      body: JSON.stringify(category),
+    });
+  },
+
+  async update(id: string, category: Partial<ExpenseCategory>): Promise<ExpenseCategory> {
+    return apiRequest<ExpenseCategory>(`/expense-categories/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(category),
+    });
+  },
+
+  async delete(id: string): Promise<void> {
+    return apiRequest<void>(`/expense-categories/${id}`, {
+      method: 'DELETE',
+    });
+  },
+};
+
 // Expense API
 export const expenseAPI = {
   async getAll(): Promise<Expense[]> {
     return apiRequest<Expense[]>('/expenses');
   },
 
-  async create(expense: Omit<Expense, 'id' | 'createdAt' | 'updatedAt'>): Promise<Expense> {
+  async create(expense: {
+    description: string;
+    amount: number;
+    date: string;
+    categoryId: string;
+    type: 'fixo' | 'variavel' | 'eventual';
+    paymentStatus: 'pago' | 'pendente' | 'vencido';
+    projectName?: string;
+  }): Promise<Expense> {
     return apiRequest<Expense>('/expenses', {
       method: 'POST',
       body: JSON.stringify(expense),
@@ -137,7 +240,15 @@ export const taxObligationAPI = {
     return apiRequest<TaxObligation[]>('/tax-obligations');
   },
 
-  async create(taxObligation: Omit<TaxObligation, 'id' | 'createdAt' | 'updatedAt'>): Promise<TaxObligation> {
+  async create(taxObligation: {
+    title: string;
+    description?: string;
+    dueDate: string;
+    amount?: number;
+    status: 'pendente' | 'pago' | 'atrasado';
+    priority: 'baixa' | 'media' | 'alta';
+    category: string;
+  }): Promise<TaxObligation> {
     return apiRequest<TaxObligation>('/tax-obligations', {
       method: 'POST',
       body: JSON.stringify(taxObligation),
@@ -158,61 +269,7 @@ export const taxObligationAPI = {
   },
 };
 
-// Income Sources API
-export const incomeSourceAPI = {
-  async getAll(): Promise<IncomeSource[]> {
-    return apiRequest<IncomeSource[]>('/income-sources');
-  },
-
-  async create(source: Omit<IncomeSource, 'id'>): Promise<IncomeSource> {
-    return apiRequest<IncomeSource>('/income-sources', {
-      method: 'POST',
-      body: JSON.stringify(source),
-    });
-  },
-
-  async update(id: string, source: Partial<IncomeSource>): Promise<IncomeSource> {
-    return apiRequest<IncomeSource>(`/income-sources/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(source),
-    });
-  },
-
-  async delete(id: string): Promise<void> {
-    return apiRequest<void>(`/income-sources/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
-
-// Expense Categories API
-export const expenseCategoryAPI = {
-  async getAll(): Promise<ExpenseCategory[]> {
-    return apiRequest<ExpenseCategory[]>('/expense-categories');
-  },
-
-  async create(category: Omit<ExpenseCategory, 'id'>): Promise<ExpenseCategory> {
-    return apiRequest<ExpenseCategory>('/expense-categories', {
-      method: 'POST',
-      body: JSON.stringify(category),
-    });
-  },
-
-  async update(id: string, category: Partial<ExpenseCategory>): Promise<ExpenseCategory> {
-    return apiRequest<ExpenseCategory>(`/expense-categories/${id}`, {
-      method: 'PUT',
-      body: JSON.stringify(category),
-    });
-  },
-
-  async delete(id: string): Promise<void> {
-    return apiRequest<void>(`/expense-categories/${id}`, {
-      method: 'DELETE',
-    });
-  },
-};
-
-// Reports API
+// Reports API (Placeholder - implementar quando backend estiver pronto)
 export const reportsAPI = {
   async getFinancialSummary(
     startDate?: string, 
@@ -266,7 +323,7 @@ export const reportsAPI = {
 export const healthAPI = {
   async check(): Promise<{ status: 'ok' | 'error'; message?: string }> {
     try {
-      return await apiRequest<{ status: 'ok' }>('/health');
+      return await apiRequest<{ status: 'ok'; timestamp: string }>('/health');
     } catch (error) {
       return { 
         status: 'error', 

@@ -22,7 +22,12 @@ const COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4'
 export const Dashboard: React.FC = () => {
   const { state } = useAppContext();
   const { financialSummary, monthlyData } = useFinancialCalculations();
-  const { incomes, expenses, incomeSources, expenseCategories } = state;
+  
+  // Garantir que os arrays existem antes de usar
+  const safeIncomes = Array.isArray(state.incomes) ? state.incomes : [];
+  const safeExpenses = Array.isArray(state.expenses) ? state.expenses : [];
+  const safeIncomeSources = Array.isArray(state.incomeSources) ? state.incomeSources : [];
+  const safeExpenseCategories = Array.isArray(state.expenseCategories) ? state.expenseCategories : [];
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('pt-BR', {
@@ -36,8 +41,8 @@ export const Dashboard: React.FC = () => {
   };
 
   // Dados para o gráfico de receitas por fonte
-  const incomeBySource = incomeSources.map(source => {
-    const total = incomes
+  const incomeBySource = safeIncomeSources.map(source => {
+    const total = safeIncomes
       .filter(income => income.sourceId === source.id)
       .reduce((sum, income) => sum + income.amount, 0);
     return {
@@ -48,8 +53,8 @@ export const Dashboard: React.FC = () => {
   }).filter(item => item.value > 0);
 
   // Dados para o gráfico de despesas por categoria
-  const expenseByCategory = expenseCategories.map(category => {
-    const total = expenses
+  const expenseByCategory = safeExpenseCategories.map(category => {
+    const total = safeExpenses
       .filter(expense => expense.categoryId === category.id)
       .reduce((sum, expense) => sum + expense.amount, 0);
     return {
@@ -61,22 +66,28 @@ export const Dashboard: React.FC = () => {
 
   // Atividades recentes
   const recentActivities = [
-    ...incomes.slice(-3).map(income => ({
-      id: income.id,
-      type: 'income' as const,
-      description: income.description,
-      amount: income.amount,
-      date: income.date,
-      source: income.source.name
-    })),
-    ...expenses.slice(-3).map(expense => ({
-      id: expense.id,
-      type: 'expense' as const,
-      description: expense.description,
-      amount: expense.amount,
-      date: expense.date,
-      category: expense.category.name
-    }))
+    ...safeIncomes.slice(-3).map(income => {
+      const source = safeIncomeSources.find(s => s.id === income.sourceId);
+      return {
+        id: income.id,
+        type: 'income' as const,
+        description: income.description,
+        amount: income.amount,
+        date: income.date,
+        source: source?.name || 'Fonte não encontrada'
+      };
+    }),
+    ...safeExpenses.slice(-3).map(expense => {
+      const category = safeExpenseCategories.find(c => c.id === expense.categoryId);
+      return {
+        id: expense.id,
+        type: 'expense' as const,
+        description: expense.description,
+        amount: expense.amount,
+        date: expense.date,
+        category: category?.name || 'Categoria não encontrada'
+      };
+    })
   ].sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()).slice(0, 5);
 
   if (!financialSummary) {

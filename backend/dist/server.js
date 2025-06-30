@@ -29,9 +29,20 @@ const limiter = (0, express_rate_limit_1.default)({
     message: 'Muitas tentativas, tente novamente em 15 minutos'
 });
 app.use((0, helmet_1.default)());
+const allowedOrigins = [
+    'http://localhost:5173',
+    'http://localhost:5175',
+    'http://127.0.0.1:5173',
+    'http://127.0.0.1:5175'
+];
+if (process.env.FRONTEND_URL) {
+    allowedOrigins.push(process.env.FRONTEND_URL);
+}
 app.use((0, cors_1.default)({
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
-    credentials: true
+    origin: allowedOrigins,
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization']
 }));
 app.use(limiter);
 app.use(express_1.default.json({ limit: '10mb' }));
