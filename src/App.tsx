@@ -9,6 +9,7 @@ import { Despesas } from '@/pages/Despesas';
 import { ObrigacoesTributarias } from '@/pages/ObrigacoesTributarias';
 import { Relatorios } from '@/pages/Relatorios';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { PWAInstallPrompt } from '@/components/PWAInstallPrompt';
 import { Toaster } from 'sonner';
 
 const AppContent: React.FC = () => {
@@ -39,6 +40,7 @@ function App() {
       <AppProvider>
         <Router>
           <AppContent />
+          <PWAInstallPrompt />
           <Toaster 
             position="top-right"
             toastOptions={{

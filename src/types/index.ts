@@ -5,6 +5,7 @@ export interface User {
   avatar?: string;
   companyName?: string;
   cnpj?: string;
+  businessType?: string;
   role?: 'contador' | 'admin' | 'cliente';
   createdAt: Date;
 }

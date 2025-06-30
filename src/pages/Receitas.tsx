@@ -158,7 +158,7 @@ export const Receitas: React.FC = () => {
                   <Label htmlFor="description">Descrição</Label>
                   <Textarea
                     id="description"
-                    placeholder="Ex: Receita do YouTube - Junho 2024"
+                    placeholder="Ex: Honorários de Consultoria - Junho 2024"
                     {...register('description')}
                   />
                   {errors.description && (

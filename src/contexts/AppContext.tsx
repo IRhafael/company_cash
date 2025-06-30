@@ -9,6 +9,7 @@ import {
   FinancialSummary,
   MonthlyData 
 } from '@/types';
+import api from '@/services/api';
 
 interface AppState {
   user: User | null;
@@ -21,24 +22,30 @@ interface AppState {
   financialSummary: FinancialSummary | null;
   monthlyData: MonthlyData[];
   isLoading: boolean;
+  error: string | null;
 }
 
 type AppAction = 
   | { type: 'SET_USER'; payload: User }
   | { type: 'LOGOUT' }
+  | { type: 'SET_INCOMES'; payload: Income[] }
   | { type: 'ADD_INCOME'; payload: Income }
   | { type: 'UPDATE_INCOME'; payload: Income }
   | { type: 'DELETE_INCOME'; payload: string }
+  | { type: 'SET_EXPENSES'; payload: Expense[] }
   | { type: 'ADD_EXPENSE'; payload: Expense }
   | { type: 'UPDATE_EXPENSE'; payload: Expense }
   | { type: 'DELETE_EXPENSE'; payload: string }
+  | { type: 'SET_TAX_OBLIGATIONS'; payload: TaxObligation[] }
   | { type: 'ADD_TAX_OBLIGATION'; payload: TaxObligation }
   | { type: 'UPDATE_TAX_OBLIGATION'; payload: TaxObligation }
   | { type: 'DELETE_TAX_OBLIGATION'; payload: string }
+  | { type: 'SET_INCOME_SOURCES'; payload: IncomeSource[] }
+  | { type: 'SET_EXPENSE_CATEGORIES'; payload: ExpenseCategory[] }
   | { type: 'SET_FINANCIAL_SUMMARY'; payload: FinancialSummary }
   | { type: 'SET_MONTHLY_DATA'; payload: MonthlyData[] }
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'LOAD_DATA'; payload: { incomes: Income[]; expenses: Expense[]; taxObligations: TaxObligation[] } };
+  | { type: 'SET_ERROR'; payload: string | null };
 
 const initialState: AppState = {
   user: null,
@@ -46,27 +53,12 @@ const initialState: AppState = {
   incomes: [],
   expenses: [],
   taxObligations: [],
-  incomeSources: [
-    { id: '1', name: 'Vendas de Produtos', type: 'vendas', isActive: true, color: '#10B981', accountCode: '3.1.1' },
-    { id: '2', name: 'Prestação de Serviços', type: 'servicos', isActive: true, color: '#3B82F6', accountCode: '3.1.2' },
-    { id: '3', name: 'Receitas Financeiras', type: 'financeiro', isActive: true, color: '#F59E0B', accountCode: '3.2.1' },
-    { id: '4', name: 'Outras Receitas Operacionais', type: 'operacional', isActive: true, color: '#8B5CF6', accountCode: '3.1.9' },
-    { id: '5', name: 'Receitas Extraordinárias', type: 'extraordinario', isActive: true, color: '#EF4444', accountCode: '3.3.1' },
-    { id: '6', name: 'Outros', type: 'outros', isActive: true, color: '#6B7280', accountCode: '3.9.9' }
-  ],
-  expenseCategories: [
-    { id: '1', name: 'Salários e Encargos', color: '#3B82F6', icon: 'Users', isDefault: true, type: 'operacional', accountCode: '4.1.1' },
-    { id: '2', name: 'Aluguel e Condomínio', color: '#10B981', icon: 'Building', isDefault: true, type: 'operacional', accountCode: '4.1.2' },
-    { id: '3', name: 'Serviços de Terceiros', color: '#F59E0B', icon: 'Handshake', isDefault: true, type: 'operacional', accountCode: '4.1.3' },
-    { id: '4', name: 'Material de Escritório', color: '#8B5CF6', icon: 'FileText', isDefault: true, type: 'administrativa', accountCode: '4.2.1' },
-    { id: '5', name: 'Despesas Tributárias', color: '#EF4444', icon: 'Receipt', isDefault: true, type: 'tributaria', accountCode: '4.3.1' },
-    { id: '6', name: 'Despesas Financeiras', color: '#06B6D4', icon: 'CreditCard', isDefault: true, type: 'financeira', accountCode: '4.4.1' },
-    { id: '7', name: 'Investimentos', color: '#84CC16', icon: 'TrendingUp', isDefault: false, type: 'investimento', accountCode: '4.5.1' },
-    { id: '8', name: 'Outros', color: '#6B7280', icon: 'MoreHorizontal', isDefault: true, type: 'operacional', accountCode: '4.9.9' }
-  ],
+  incomeSources: [],
+  expenseCategories: [],
   financialSummary: null,
   monthlyData: [],
-  isLoading: false
+  isLoading: false,
+  error: null
 };
 
 function appReducer(state: AppState, action: AppAction): AppState {
@@ -75,7 +67,19 @@ function appReducer(state: AppState, action: AppAction): AppState {
       return { ...state, user: action.payload, isAuthenticated: true };
     
     case 'LOGOUT':
-      return { ...state, user: null, isAuthenticated: false };
+      return { 
+        ...state, 
+        user: null, 
+        isAuthenticated: false,
+        incomes: [],
+        expenses: [],
+        taxObligations: [],
+        financialSummary: null,
+        monthlyData: []
+      };
+    
+    case 'SET_INCOMES':
+      return { ...state, incomes: action.payload };
     
     case 'ADD_INCOME':
       return { ...state, incomes: [...state.incomes, action.payload] };
@@ -94,6 +98,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
         incomes: state.incomes.filter(income => income.id !== action.payload)
       };
     
+    case 'SET_EXPENSES':
+      return { ...state, expenses: action.payload };
+    
     case 'ADD_EXPENSE':
       return { ...state, expenses: [...state.expenses, action.payload] };
     
@@ -110,6 +117,9 @@ function appReducer(state: AppState, action: AppAction): AppState {
         ...state,
         expenses: state.expenses.filter(expense => expense.id !== action.payload)
       };
+    
+    case 'SET_TAX_OBLIGATIONS':
+      return { ...state, taxObligations: action.payload };
     
     case 'ADD_TAX_OBLIGATION':
       return { ...state, taxObligations: [...state.taxObligations, action.payload] };
@@ -128,6 +138,12 @@ function appReducer(state: AppState, action: AppAction): AppState {
         taxObligations: state.taxObligations.filter(obligation => obligation.id !== action.payload)
       };
     
+    case 'SET_INCOME_SOURCES':
+      return { ...state, incomeSources: action.payload };
+    
+    case 'SET_EXPENSE_CATEGORIES':
+      return { ...state, expenseCategories: action.payload };
+    
     case 'SET_FINANCIAL_SUMMARY':
       return { ...state, financialSummary: action.payload };
     
@@ -137,13 +153,8 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'SET_LOADING':
       return { ...state, isLoading: action.payload };
     
-    case 'LOAD_DATA':
-      return {
-        ...state,
-        incomes: action.payload.incomes,
-        expenses: action.payload.expenses,
-        taxObligations: action.payload.taxObligations
-      };
+    case 'SET_ERROR':
+      return { ...state, error: action.payload };
     
     default:
       return state;
@@ -153,9 +164,11 @@ function appReducer(state: AppState, action: AppAction): AppState {
 const AppContext = createContext<{
   state: AppState;
   dispatch: React.Dispatch<AppAction>;
+  loadUserData: () => Promise<void>;
 }>({
   state: initialState,
-  dispatch: () => null
+  dispatch: () => null,
+  loadUserData: async () => {}
 });
 
 export const useAppContext = () => {
@@ -169,54 +182,62 @@ export const useAppContext = () => {
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [state, dispatch] = useReducer(appReducer, initialState);
 
-  // Carregar dados do localStorage na inicialização
-  useEffect(() => {
-    const userData = localStorage.getItem('companyCash_user');
-    const incomesData = localStorage.getItem('companyCash_incomes');
-    const expensesData = localStorage.getItem('companyCash_expenses');
-    const taxObligationsData = localStorage.getItem('companyCash_taxObligations');
-
-    if (userData) {
-      const user = JSON.parse(userData);
-      dispatch({ type: 'SET_USER', payload: user });
-    }
-
-    if (incomesData || expensesData || taxObligationsData) {
-      const incomes = incomesData ? JSON.parse(incomesData) : [];
-      const expenses = expensesData ? JSON.parse(expensesData) : [];
-      const taxObligations = taxObligationsData ? JSON.parse(taxObligationsData) : [];
+  // Função para carregar dados do usuário autenticado
+  const loadUserData = async () => {
+    try {
+      dispatch({ type: 'SET_LOADING', payload: true });
       
-      dispatch({ type: 'LOAD_DATA', payload: { incomes, expenses, taxObligations } });
+      // Carregar dados em paralelo
+      const [
+        incomesData,
+        expensesData,
+        taxObligationsData,
+        incomeSourcesData,
+        expenseCategoriesData
+      ] = await Promise.all([
+        api.incomes.getAll(),
+        api.expenses.getAll(),
+        api.taxObligations.getAll(),
+        api.incomeSources.getAll(),
+        api.expenseCategories.getAll()
+      ]);
+
+      dispatch({ type: 'SET_INCOMES', payload: incomesData });
+      dispatch({ type: 'SET_EXPENSES', payload: expensesData });
+      dispatch({ type: 'SET_TAX_OBLIGATIONS', payload: taxObligationsData });
+      dispatch({ type: 'SET_INCOME_SOURCES', payload: incomeSourcesData });
+      dispatch({ type: 'SET_EXPENSE_CATEGORIES', payload: expenseCategoriesData });
+      
+    } catch (error) {
+      console.error('Erro ao carregar dados:', error);
+      dispatch({ type: 'SET_ERROR', payload: 'Erro ao carregar dados do usuário' });
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
     }
+  };
+
+  // Verificar se há usuário logado na inicialização
+  useEffect(() => {
+    const checkAuth = async () => {
+      const token = localStorage.getItem('companyCash_token');
+      if (token) {
+        try {
+          const user = await api.auth.getCurrentUser();
+          dispatch({ type: 'SET_USER', payload: user });
+          await loadUserData();
+        } catch (error) {
+          console.error('Token inválido:', error);
+          localStorage.removeItem('companyCash_token');
+          localStorage.removeItem('companyCash_user');
+        }
+      }
+    };
+
+    checkAuth();
   }, []);
 
-  // Salvar dados no localStorage quando mudarem
-  useEffect(() => {
-    if (state.user) {
-      localStorage.setItem('companyCash_user', JSON.stringify(state.user));
-    }
-  }, [state.user]);
-
-  useEffect(() => {
-    if (state.incomes.length > 0) {
-      localStorage.setItem('companyCash_incomes', JSON.stringify(state.incomes));
-    }
-  }, [state.incomes]);
-
-  useEffect(() => {
-    if (state.expenses.length > 0) {
-      localStorage.setItem('companyCash_expenses', JSON.stringify(state.expenses));
-    }
-  }, [state.expenses]);
-
-  useEffect(() => {
-    if (state.taxObligations.length > 0) {
-      localStorage.setItem('companyCash_taxObligations', JSON.stringify(state.taxObligations));
-    }
-  }, [state.taxObligations]);
-
   return (
-    <AppContext.Provider value={{ state, dispatch }}>
+    <AppContext.Provider value={{ state, dispatch, loadUserData }}>
       {children}
     </AppContext.Provider>
   );

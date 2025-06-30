@@ -10,29 +10,26 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useAppContext } from '@/contexts/AppContext';
 import { User } from '@/types';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Youtube, Twitch, Monitor, Users } from 'lucide-react';
+import { Building2, Calculator, Briefcase, Receipt } from 'lucide-react';
 
 const authSchema = z.object({
   name: z.string().min(2, 'Nome deve ter pelo menos 2 caracteres'),
   email: z.string().email('Email inválido'),
-  channelName: z.string().optional(),
-  niche: z.string().optional(),
+  companyName: z.string().min(2, 'Nome da empresa é obrigatório'),
+  cnpj: z.string().optional(),
+  businessType: z.string().optional(),
 });
 
 type AuthFormData = z.infer<typeof authSchema>;
 
-const niches = [
-  'Gaming',
-  'Tecnologia',
-  'Lifestyle',
-  'Educação',
-  'Entretenimento',
-  'Negócios',
-  'Saúde e Fitness',
-  'Culinária',
-  'Viagem',
-  'Arte e Design',
-  'Música',
+const businessTypes = [
+  'Escritório de Contabilidade',
+  'Consultoria Tributária',
+  'Auditoria',
+  'Assessoria Empresarial',
+  'Gestão Financeira',
+  'Perícia Contábil',
+  'Consultoria em Gestão',
   'Outros'
 ];
 
@@ -54,8 +51,9 @@ export const AuthForm: React.FC = () => {
         id: Math.random().toString(36).substr(2, 9),
         name: data.name,
         email: data.email,
-        channelName: data.channelName,
-        niche: data.niche,
+        companyName: data.companyName,
+        cnpj: data.cnpj,
+        businessType: data.businessType,
         avatar: `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.name}`,
         createdAt: new Date()
       };
@@ -65,31 +63,35 @@ export const AuthForm: React.FC = () => {
     }, 1000);
   };
 
-  const handleQuickLogin = (userType: 'youtuber' | 'streamer' | 'course_creator' | 'influencer') => {
+  const handleQuickLogin = (userType: 'contabilidade' | 'consultoria' | 'auditoria' | 'gestao') => {
     const userData = {
-      youtuber: {
-        name: 'Lucas Silva',
-        email: 'lucas@youtube.com',
-        channelName: 'TechCriativo',
-        niche: 'Tecnologia'
+      contabilidade: {
+        name: 'Carlos Silva',
+        email: 'carlos@contadorsilva.com.br',
+        companyName: 'Contabilidade Silva & Associados',
+        cnpj: '12.345.678/0001-90',
+        businessType: 'Escritório de Contabilidade'
       },
-      streamer: {
-        name: 'Ana Costa',
-        email: 'ana@twitch.com',
-        channelName: 'AnaGames',
-        niche: 'Gaming'
+      consultoria: {
+        name: 'Ana Tributária',
+        email: 'ana@consultoriatrib.com.br',
+        companyName: 'Consultoria Tributária Elite',
+        cnpj: '98.765.432/0001-10',
+        businessType: 'Consultoria Tributária'
       },
-      course_creator: {
-        name: 'Carlos Eduarda',
-        email: 'carlos@hotmart.com',
-        channelName: 'Curso de Marketing',
-        niche: 'Negócios'
+      auditoria: {
+        name: 'Roberto Auditor',
+        email: 'roberto@auditoriaplus.com.br',
+        companyName: 'Auditoria & Perícia Contábil',
+        cnpj: '11.222.333/0001-44',
+        businessType: 'Auditoria'
       },
-      influencer: {
-        name: 'Maria Santos',
-        email: 'maria@instagram.com',
-        channelName: '@mariasantos',
-        niche: 'Lifestyle'
+      gestao: {
+        name: 'Mariana Gestão',
+        email: 'mariana@gestaofinanceira.com.br',
+        companyName: 'Gestão Financeira Empresarial',
+        cnpj: '55.666.777/0001-88',
+        businessType: 'Gestão Financeira'
       }
     };
 
@@ -102,12 +104,12 @@ export const AuthForm: React.FC = () => {
       <div className="w-full max-w-lg">
         <div className="text-center mb-8">
           <div className="flex items-center justify-center mb-4">
-            <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-3">
-              <Monitor className="h-8 w-8 text-white" />
+            <div className="bg-gradient-to-r from-emerald-600 to-blue-600 rounded-xl p-3">
+              <Building2 className="h-8 w-8 text-white" />
             </div>
           </div>
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">CreatorCash</h1>
-          <p className="text-gray-600">Gestão financeira simplificada para criadores</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">CompanyCash</h1>
+          <p className="text-gray-600">Sistema de gestão financeira empresarial</p>
         </div>
 
         <Tabs defaultValue="quick" className="w-full">
@@ -121,59 +123,59 @@ export const AuthForm: React.FC = () => {
               <CardHeader>
                 <CardTitle>Demonstração Rápida</CardTitle>
                 <CardDescription>
-                  Explore o CreatorCash com perfis pré-configurados
+                  Explore o CompanyCash com perfis empresariais pré-configurados
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-3">
                 <Button 
                   variant="outline" 
                   className="w-full justify-start h-14"
-                  onClick={() => handleQuickLogin('youtuber')}
+                  onClick={() => handleQuickLogin('contabilidade')}
                   disabled={isLoading}
                 >
-                  <Youtube className="h-5 w-5 mr-3 text-red-500" />
+                  <Calculator className="h-5 w-5 mr-3 text-blue-600" />
                   <div className="text-left">
-                    <div className="font-medium">YouTuber Tech</div>
-                    <div className="text-sm text-gray-500">Canal de tecnologia</div>
+                    <div className="font-medium">Escritório de Contabilidade</div>
+                    <div className="text-sm text-gray-500">Contabilidade Silva & Associados</div>
                   </div>
                 </Button>
                 
                 <Button 
                   variant="outline" 
                   className="w-full justify-start h-14"
-                  onClick={() => handleQuickLogin('streamer')}
+                  onClick={() => handleQuickLogin('consultoria')}
                   disabled={isLoading}
                 >
-                  <Twitch className="h-5 w-5 mr-3 text-purple-500" />
+                  <Receipt className="h-5 w-5 mr-3 text-emerald-600" />
                   <div className="text-left">
-                    <div className="font-medium">Streamer Gaming</div>
-                    <div className="text-sm text-gray-500">Stream de games</div>
+                    <div className="font-medium">Consultoria Tributária</div>
+                    <div className="text-sm text-gray-500">Consultoria Tributária Elite</div>
                   </div>
                 </Button>
                 
                 <Button 
                   variant="outline" 
                   className="w-full justify-start h-14"
-                  onClick={() => handleQuickLogin('course_creator')}
+                  onClick={() => handleQuickLogin('auditoria')}
                   disabled={isLoading}
                 >
-                  <Monitor className="h-5 w-5 mr-3 text-green-500" />
+                  <Briefcase className="h-5 w-5 mr-3 text-purple-600" />
                   <div className="text-left">
-                    <div className="font-medium">Criador de Cursos</div>
-                    <div className="text-sm text-gray-500">Cursos online</div>
+                    <div className="font-medium">Auditoria & Perícia</div>
+                    <div className="text-sm text-gray-500">Auditoria & Perícia Contábil</div>
                   </div>
                 </Button>
                 
                 <Button 
                   variant="outline" 
                   className="w-full justify-start h-14"
-                  onClick={() => handleQuickLogin('influencer')}
+                  onClick={() => handleQuickLogin('gestao')}
                   disabled={isLoading}
                 >
-                  <Users className="h-5 w-5 mr-3 text-pink-500" />
+                  <Building2 className="h-5 w-5 mr-3 text-amber-600" />
                   <div className="text-left">
-                    <div className="font-medium">Influenciadora</div>
-                    <div className="text-sm text-gray-500">Conteúdo lifestyle</div>
+                    <div className="font-medium">Gestão Financeira</div>
+                    <div className="text-sm text-gray-500">Gestão Financeira Empresarial</div>
                   </div>
                 </Button>
               </CardContent>
@@ -183,9 +185,9 @@ export const AuthForm: React.FC = () => {
           <TabsContent value="form">
             <Card>
               <CardHeader>
-                <CardTitle>Criar Seu Perfil</CardTitle>
+                <CardTitle>Criar Sua Conta</CardTitle>
                 <CardDescription>
-                  Configure sua conta personalizada no CreatorCash
+                  Configure sua conta personalizada no CompanyCash
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -216,24 +218,36 @@ export const AuthForm: React.FC = () => {
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="channelName">Nome do Canal/Perfil (opcional)</Label>
+                    <Label htmlFor="companyName">Nome da Empresa</Label>
                     <Input
-                      id="channelName"
-                      placeholder="@seucanal ou Seu Canal"
-                      {...register('channelName')}
+                      id="companyName"
+                      placeholder="Nome da sua empresa"
+                      {...register('companyName')}
+                    />
+                    {errors.companyName && (
+                      <p className="text-sm text-red-500">{errors.companyName.message}</p>
+                    )}
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="cnpj">CNPJ (opcional)</Label>
+                    <Input
+                      id="cnpj"
+                      placeholder="00.000.000/0000-00"
+                      {...register('cnpj')}
                     />
                   </div>
 
                   <div className="space-y-2">
-                    <Label>Nicho de Conteúdo (opcional)</Label>
-                    <Select onValueChange={(value) => setValue('niche', value)}>
+                    <Label>Tipo de Negócio (opcional)</Label>
+                    <Select onValueChange={(value) => setValue('businessType', value)}>
                       <SelectTrigger>
-                        <SelectValue placeholder="Selecione seu nicho" />
+                        <SelectValue placeholder="Selecione o tipo de negócio" />
                       </SelectTrigger>
                       <SelectContent>
-                        {niches.map((niche) => (
-                          <SelectItem key={niche} value={niche}>
-                            {niche}
+                        {businessTypes.map((type) => (
+                          <SelectItem key={type} value={type}>
+                            {type}
                           </SelectItem>
                         ))}
                       </SelectContent>
@@ -242,7 +256,7 @@ export const AuthForm: React.FC = () => {
 
                   <Button 
                     type="submit" 
-                    className="w-full bg-gradient-to-r from-blue-600 to-purple-600"
+                    className="w-full bg-gradient-to-r from-emerald-600 to-blue-600"
                     disabled={isLoading}
                   >
                     {isLoading ? 'Criando conta...' : 'Começar agora'}
