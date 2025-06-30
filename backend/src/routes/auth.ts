@@ -62,24 +62,27 @@ async function createDefaultSourcesAndCategories(userId: string) {
 }
 
 // Registro
-router.post('/register', async (req: AuthRequest, res: Response) => {
+router.post('/register', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const db = global.db;
     if (!db) {
-      return res.status(500).json({ error: 'Database not available' });
+      res.status(500).json({ error: 'Database not available' });
+      return;
     }
 
     const { name, email, password, companyName, cnpj, businessType } = req.body;
 
     // Validações básicas
     if (!name || !email || !password) {
-      return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
+      res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
+      return;
     }
 
     // Verificar se o usuário já existe
     const existingUser = await db.get('SELECT id FROM users WHERE email = ?', [email]);
     if (existingUser) {
-      return res.status(409).json({ error: 'Usuário já existe com este email' });
+      res.status(409).json({ error: 'Usuário já existe com este email' });
+      return;
     }
 
     // Hash da senha
@@ -122,29 +125,33 @@ router.post('/register', async (req: AuthRequest, res: Response) => {
 });
 
 // Login
-router.post('/login', async (req: AuthRequest, res: Response) => {
+router.post('/login', async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const db = global.db;
     if (!db) {
-      return res.status(500).json({ error: 'Database not available' });
+      res.status(500).json({ error: 'Database not available' });
+      return;
     }
 
     const { email, password } = req.body;
 
     if (!email || !password) {
-      return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+      res.status(400).json({ error: 'Email e senha são obrigatórios' });
+      return;
     }
 
     // Buscar usuário
     const user = await db.get('SELECT * FROM users WHERE email = ?', [email]) as User;
     if (!user) {
-      return res.status(401).json({ error: 'Credenciais inválidas' });
+      res.status(401).json({ error: 'Credenciais inválidas' });
+      return;
     }
 
     // Verificar senha
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
-      return res.status(401).json({ error: 'Credenciais inválidas' });
+      res.status(401).json({ error: 'Credenciais inválidas' });
+      return;
     }
 
     // Gerar token JWT
@@ -177,11 +184,12 @@ router.post('/login', async (req: AuthRequest, res: Response) => {
 });
 
 // Obter dados do usuário atual
-router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => {
+router.get('/me', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
   try {
     const db = global.db;
     if (!db) {
-      return res.status(500).json({ error: 'Database not available' });
+      res.status(500).json({ error: 'Database not available' });
+      return;
     }
 
     const user = await db.get(
@@ -190,7 +198,8 @@ router.get('/me', authenticateToken, async (req: AuthRequest, res: Response) => 
     );
 
     if (!user) {
-      return res.status(404).json({ error: 'Usuário não encontrado' });
+      res.status(404).json({ error: 'Usuário não encontrado' });
+      return;
     }
 
     res.json({ user });

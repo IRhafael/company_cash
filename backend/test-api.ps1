@@ -56,14 +56,27 @@ try {
     Write-Host "`n4. Testando endpoint protegido (income sources)..." -ForegroundColor Yellow
     $headers = @{
         "Authorization" = "Bearer $token"
+        "Content-Type" = "application/json"
     }
     
     try {
-        $sources = Invoke-RestMethod -Uri "http://localhost:3001/api/income-sources" -Method GET -Headers $headers -TimeoutSec 10
+        Start-Sleep -Seconds 2
+        $sources = Invoke-RestMethod -Uri "http://localhost:3001/api/income-sources" -Method GET -Headers $headers -TimeoutSec 15
         Write-Host "Sources obtidas: $($sources.Count) items" -ForegroundColor Green
-        Write-Host "Primeira source: $($sources[0] | ConvertTo-Json)" -ForegroundColor Cyan
+        if ($sources.Count -gt 0) {
+            Write-Host "Primeira source: $($sources[0] | ConvertTo-Json)" -ForegroundColor Cyan
+        }
     } catch {
         Write-Host "Erro ao buscar sources: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host "Status Code: $($_.Exception.Response.StatusCode)" -ForegroundColor Yellow
+        
+        # Teste alternativo - verificar se o servidor ainda está respondendo
+        try {
+            $health2 = Invoke-RestMethod -Uri "http://localhost:3001/api/health" -Method GET -TimeoutSec 5
+            Write-Host "Health check ainda funciona, problema específico na rota protegida" -ForegroundColor Yellow
+        } catch {
+            Write-Host "Servidor parou de responder completamente" -ForegroundColor Red
+        }
     }
     
 } catch {

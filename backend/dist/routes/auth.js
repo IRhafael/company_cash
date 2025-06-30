@@ -32,15 +32,18 @@ router.post('/register', async (req, res) => {
     try {
         const db = global.db;
         if (!db) {
-            return res.status(500).json({ error: 'Database not available' });
+            res.status(500).json({ error: 'Database not available' });
+            return;
         }
         const { name, email, password, companyName, cnpj, businessType } = req.body;
         if (!name || !email || !password) {
-            return res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
+            res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
+            return;
         }
         const existingUser = await db.get('SELECT id FROM users WHERE email = ?', [email]);
         if (existingUser) {
-            return res.status(409).json({ error: 'Usuário já existe com este email' });
+            res.status(409).json({ error: 'Usuário já existe com este email' });
+            return;
         }
         const saltRounds = 10;
         const hashedPassword = await bcryptjs_1.default.hash(password, saltRounds);
@@ -64,19 +67,23 @@ router.post('/login', async (req, res) => {
     try {
         const db = global.db;
         if (!db) {
-            return res.status(500).json({ error: 'Database not available' });
+            res.status(500).json({ error: 'Database not available' });
+            return;
         }
         const { email, password } = req.body;
         if (!email || !password) {
-            return res.status(400).json({ error: 'Email e senha são obrigatórios' });
+            res.status(400).json({ error: 'Email e senha são obrigatórios' });
+            return;
         }
         const user = await db.get('SELECT * FROM users WHERE email = ?', [email]);
         if (!user) {
-            return res.status(401).json({ error: 'Credenciais inválidas' });
+            res.status(401).json({ error: 'Credenciais inválidas' });
+            return;
         }
         const isValidPassword = await bcryptjs_1.default.compare(password, user.password_hash);
         if (!isValidPassword) {
-            return res.status(401).json({ error: 'Credenciais inválidas' });
+            res.status(401).json({ error: 'Credenciais inválidas' });
+            return;
         }
         const token = jsonwebtoken_1.default.sign({ userId: user.id, email: user.email }, process.env.JWT_SECRET || 'fallback-secret', { expiresIn: '7d' });
         const userResponse = {
@@ -102,11 +109,13 @@ router.get('/me', auth_1.authenticateToken, async (req, res) => {
     try {
         const db = global.db;
         if (!db) {
-            return res.status(500).json({ error: 'Database not available' });
+            res.status(500).json({ error: 'Database not available' });
+            return;
         }
         const user = await db.get('SELECT id, name, email, company_name as companyName, cnpj, business_type as businessType FROM users WHERE id = ?', [req.userId]);
         if (!user) {
-            return res.status(404).json({ error: 'Usuário não encontrado' });
+            res.status(404).json({ error: 'Usuário não encontrado' });
+            return;
         }
         res.json({ user });
     }

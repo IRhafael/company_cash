@@ -7,22 +7,19 @@ const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
 router.get('/', auth_1.authenticateToken, async (req, res) => {
     try {
-        const userId = req.userId;
-        const { includeInactive = false } = req.query;
-        let query = 'SELECT * FROM income_sources WHERE user_id = ?';
-        const params = [userId];
-        if (!includeInactive) {
-            query += ' AND is_active = 1';
+        const db = global.db;
+        if (!db) {
+            res.status(500).json({ error: 'Database not available' });
+            return;
         }
-        query += ' ORDER BY name ASC';
-        const sources = await req.db.all(query, params);
-        res.json({
-            success: true,
-            data: sources
-        });
+        const userId = req.userId;
+        const query = 'SELECT * FROM income_sources WHERE user_id = ? ORDER BY name ASC';
+        const sources = await db.all(query, [userId]);
+        res.json(sources);
     }
     catch (error) {
-        throw error;
+        console.error('Erro ao buscar fontes de receita:', error);
+        res.status(500).json({ error: 'Erro interno do servidor' });
     }
 });
 router.post('/', auth_1.authenticateToken, async (req, res) => {

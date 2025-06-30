@@ -18,28 +18,23 @@ interface IncomeSource {
 }
 
 // GET /api/income-sources - Buscar fontes de receita do usuário
-router.get('/', authenticateToken, async (req: any, res: Response) => {
+router.get('/', authenticateToken, async (req: any, res: Response): Promise<void> => {
   try {
-    const userId = req.userId;
-    const { includeInactive = false } = req.query;
-
-    let query = 'SELECT * FROM income_sources WHERE user_id = ?';
-    const params = [userId];
-
-    if (!includeInactive) {
-      query += ' AND is_active = 1';
+    const db = global.db;
+    if (!db) {
+      res.status(500).json({ error: 'Database not available' });
+      return;
     }
 
-    query += ' ORDER BY name ASC';
+    const userId = req.userId;
+    
+    const query = 'SELECT * FROM income_sources WHERE user_id = ? ORDER BY name ASC';
+    const sources = await db.all(query, [userId]);
 
-    const sources = await req.db.all(query, params);
-
-    res.json({
-      success: true,
-      data: sources
-    });
+    res.json(sources);
   } catch (error) {
-    throw error;
+    console.error('Erro ao buscar fontes de receita:', error);
+    res.status(500).json({ error: 'Erro interno do servidor' });
   }
 });
 
