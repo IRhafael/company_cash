@@ -10,6 +10,23 @@ const uuid_1 = require("uuid");
 const errorHandler_1 = require("../middleware/errorHandler");
 const auth_1 = require("../middleware/auth");
 const router = (0, express_1.Router)();
+async function createDefaultSourcesAndCategories(db, userId) {
+    try {
+        const defaultSources = await db.all('SELECT name, type, color, account_code FROM income_sources WHERE user_id = "default"');
+        for (const source of defaultSources) {
+            await db.run(`INSERT INTO income_sources (id, user_id, name, type, color, account_code, is_active) 
+         VALUES (?, ?, ?, ?, ?, ?, 1)`, [(0, uuid_1.v4)(), userId, source.name, source.type, source.color, source.account_code]);
+        }
+        const defaultCategories = await db.all('SELECT name, type, color, icon FROM expense_categories WHERE user_id = "default"');
+        for (const category of defaultCategories) {
+            await db.run(`INSERT INTO expense_categories (id, user_id, name, type, color, icon, is_default) 
+         VALUES (?, ?, ?, ?, ?, ?, 0)`, [(0, uuid_1.v4)(), userId, category.name, category.type, category.color, category.icon]);
+        }
+    }
+    catch (error) {
+        console.error('Erro ao criar fontes e categorias padrão:', error);
+    }
+}
 router.post('/register', async (req, res) => {
     try {
         const { name, email, password, companyName, cnpj, businessType } = req.body;
@@ -29,6 +46,8 @@ router.post('/register', async (req, res) => {
         const avatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${name}`;
         await req.db.run(`INSERT INTO users (id, name, email, password_hash, company_name, cnpj, business_type, avatar) 
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`, [userId, name, email, passwordHash, companyName, cnpj, businessType, avatar]);
+        await createDefaultSourcesAndCategories(req.db, userId);
+        await createDefaultSourcesAndCategories(req.db, userId);
         const token = jsonwebtoken_1.default.sign({ userId, email }, process.env.JWT_SECRET || 'fallback-secret', { expiresIn: '30d' });
         const user = {
             id: userId,

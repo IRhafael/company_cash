@@ -26,6 +26,39 @@ interface User {
   created_at: string;
 }
 
+// Função para criar fontes e categorias padrão para um novo usuário
+async function createDefaultSourcesAndCategories(db: any, userId: string) {
+  try {
+    // Copiar fontes de receita padrão
+    const defaultSources = await db.all(
+      'SELECT name, type, color, account_code FROM income_sources WHERE user_id = "default"'
+    );
+    
+    for (const source of defaultSources) {
+      await db.run(
+        `INSERT INTO income_sources (id, user_id, name, type, color, account_code, is_active) 
+         VALUES (?, ?, ?, ?, ?, ?, 1)`,
+        [uuidv4(), userId, source.name, source.type, source.color, source.account_code]
+      );
+    }
+
+    // Copiar categorias de despesa padrão
+    const defaultCategories = await db.all(
+      'SELECT name, type, color, icon FROM expense_categories WHERE user_id = "default"'
+    );
+    
+    for (const category of defaultCategories) {
+      await db.run(
+        `INSERT INTO expense_categories (id, user_id, name, type, color, icon, is_default) 
+         VALUES (?, ?, ?, ?, ?, ?, 0)`,
+        [uuidv4(), userId, category.name, category.type, category.color, category.icon]
+      );
+    }
+  } catch (error) {
+    console.error('Erro ao criar fontes e categorias padrão:', error);
+  }
+}
+
 // POST /api/auth/register
 router.post('/register', async (req: any, res: Response) => {
   try {
@@ -59,6 +92,12 @@ router.post('/register', async (req: any, res: Response) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [userId, name, email, passwordHash, companyName, cnpj, businessType, avatar]
     );
+
+    // Criar fontes e categorias padrão para o novo usuário
+    await createDefaultSourcesAndCategories(req.db, userId);
+
+    // Criar fontes e categorias padrão
+    await createDefaultSourcesAndCategories(req.db, userId);
 
     // Gerar token JWT
     const token = jwt.sign(
