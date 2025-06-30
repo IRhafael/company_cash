@@ -17,11 +17,12 @@ async function apiRequest<T>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<T> {
-  // Log detalhado dos dados enviados
   const requestBody = options.body ? JSON.parse(options.body as string) : null;
-  console.log('📤 Dados enviados:', {
-    endpoint,
+  
+  console.log('📤 Request:', {
+    url: `${API_BASE_URL}${endpoint}`,
     method: options.method || 'GET',
+    headers: options.headers,
     body: requestBody
   });
 
@@ -38,36 +39,45 @@ async function apiRequest<T>(
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-    const responseData = await response.json().catch(() => null);
+    const responseData = await response.json().catch(() => ({
+      error: 'Erro ao parsear resposta JSON'
+    }));
 
-    // Log detalhado da resposta
-    console.log('📥 Resposta completa:', {
+    console.log('📥 Response:', {
       status: response.status,
-      statusText: response.statusText,
-      data: responseData,
-      headers: Object.fromEntries(response.headers.entries())
+      headers: Object.fromEntries(response.headers.entries()),
+      body: responseData
     });
 
     if (!response.ok) {
-      // Log específico de erro
-      console.error('❌ Erro detalhado:', {
+      console.error('❌ Erro HTTP:', {
         status: response.status,
-        message: responseData?.message || responseData?.error,
-        validation: responseData?.validation,
-        requestData: requestBody,
-        serverResponse: responseData
+        statusText: response.statusText,
+        data: responseData,
+        request: {
+          method: options.method,
+          endpoint,
+          body: requestBody
+        }
       });
 
-      throw new Error(responseData?.message || responseData?.error || `Erro ${response.status}`);
+      throw new Error(
+        responseData?.message || 
+        responseData?.error || 
+        `Erro ${response.status}: ${response.statusText}`
+      );
     }
 
     return responseData as T;
   } catch (error) {
-    // Log de erro técnico
-    console.error('🔥 Erro técnico:', {
-      name: error instanceof Error ? error.name : 'UnknownError',
-      message: error instanceof Error ? error.message : String(error),
-      requestData: requestBody,
+    console.error('💥 Erro completo:', {
+      tipo: error instanceof Error ? error.constructor.name : 'Unknown',
+      mensagem: error instanceof Error ? error.message : String(error),
+      request: {
+        endpoint,
+        method: options.method,
+        body: requestBody
+      },
       stack: error instanceof Error ? error.stack : undefined
     });
     throw error;
@@ -267,10 +277,36 @@ export const taxObligationAPI = {
     priority: 'baixa' | 'media' | 'alta';
     category: string;
   }): Promise<TaxObligation> {
-    return apiRequest<TaxObligation>('/tax-obligations', {
-      method: 'POST',
-      body: JSON.stringify(taxObligation),
+    console.log('⭐ Iniciando criação de obrigação tributária:', {
+      dados: taxObligation,
+      campos: Object.keys(taxObligation),
+      valores: Object.values(taxObligation)
     });
+
+    // Validação dos campos obrigatórios
+    const camposObrigatorios = ['title', 'dueDate', 'status', 'priority', 'category'];
+    const camposFaltando = camposObrigatorios.filter(campo => !taxObligation[campo]);
+    
+    if (camposFaltando.length > 0) {
+      console.warn('⚠️ Campos obrigatórios faltando:', camposFaltando);
+    }
+
+    try {
+      const response = await apiRequest<TaxObligation>('/tax-obligations', {
+        method: 'POST',
+        body: JSON.stringify(taxObligation),
+      });
+      
+      console.log('✅ Obrigação tributária criada com sucesso:', response);
+      return response;
+    } catch (error) {
+      console.error('❌ Erro ao criar obrigação tributária:', {
+        erro: error instanceof Error ? error.message : String(error),
+        dados: taxObligation,
+        camposFaltando
+      });
+      throw error;
+    }
   },
 
   async update(id: string, taxObligation: Partial<TaxObligation>): Promise<TaxObligation> {
