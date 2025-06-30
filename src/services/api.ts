@@ -17,6 +17,14 @@ async function apiRequest<T>(
   endpoint: string, 
   options: RequestInit = {}
 ): Promise<T> {
+  // Log detalhado dos dados enviados
+  const requestBody = options.body ? JSON.parse(options.body as string) : null;
+  console.log('📤 Dados enviados:', {
+    endpoint,
+    method: options.method || 'GET',
+    body: requestBody
+  });
+
   const token = localStorage.getItem('companyCash_token');
   
   const config: RequestInit = {
@@ -30,29 +38,38 @@ async function apiRequest<T>(
 
   try {
     const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
+    const responseData = await response.json().catch(() => null);
 
-    // Se não autorizado, limpar token e redirecionar
-    if (response.status === 401) {
-      localStorage.removeItem('companyCash_token');
-      localStorage.removeItem('companyCash_user');
-      window.location.href = '/';
-      throw new Error('Sessão expirada. Faça login novamente.');
-    }
+    // Log detalhado da resposta
+    console.log('📥 Resposta completa:', {
+      status: response.status,
+      statusText: response.statusText,
+      data: responseData,
+      headers: Object.fromEntries(response.headers.entries())
+    });
 
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: 'Erro na requisição' }));
-      throw new Error(errorData.error || `Erro ${response.status}: ${response.statusText}`);
+      // Log específico de erro
+      console.error('❌ Erro detalhado:', {
+        status: response.status,
+        message: responseData?.message || responseData?.error,
+        validation: responseData?.validation,
+        requestData: requestBody,
+        serverResponse: responseData
+      });
+
+      throw new Error(responseData?.message || responseData?.error || `Erro ${response.status}`);
     }
 
-    // Verificar se a resposta tem conteúdo
-    const contentType = response.headers.get('content-type');
-    if (contentType && contentType.includes('application/json')) {
-      return response.json();
-    } else {
-      return {} as T; // Para DELETE requests que não retornam conteúdo
-    }
+    return responseData as T;
   } catch (error) {
-    console.error(`Erro na API ${endpoint}:`, error);
+    // Log de erro técnico
+    console.error('🔥 Erro técnico:', {
+      name: error instanceof Error ? error.name : 'UnknownError',
+      message: error instanceof Error ? error.message : String(error),
+      requestData: requestBody,
+      stack: error instanceof Error ? error.stack : undefined
+    });
     throw error;
   }
 }
@@ -110,6 +127,7 @@ export const incomeSourceAPI = {
     name: string;
     type: string;
     color: string;
+    is_active?: boolean;
     accountCode?: string;
   }): Promise<IncomeSource> {
     return apiRequest<IncomeSource>('/income-sources', {

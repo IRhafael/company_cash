@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
 import { authenticateToken } from '../middleware/auth';
+import db from '../database/connection';
+import { RowDataPacket } from 'mysql2';
 
 // Extende a interface Request para incluir userId
 declare global {
@@ -28,11 +30,6 @@ interface User {
   business_type?: string;
 }
 
-// Middleware para acessar o banco de dados
-declare global {
-  var db: any;
-}
-
 // Login
 router.post('/login', async (req, res) => {
   try {
@@ -43,8 +40,8 @@ router.post('/login', async (req, res) => {
       return;
     }
 
-    const [users] = await global.db.query('SELECT * FROM users WHERE email = ?', [email]);
-    const user = users[0];
+    const [users] = await db.query<RowDataPacket[]>('SELECT * FROM users WHERE email = ?', [email]);
+    const user = (users as RowDataPacket[])[0];
 
     if (!user) {
       res.status(401).json({ error: 'Credenciais inválidas' });
@@ -100,9 +97,8 @@ router.post('/register', async (req, res) => {
       return;
     }
 
-    const [existing] = await global.db.query('SELECT id FROM users WHERE email = ?', [email]);
-
-    if (existing.length > 0) {
+    const [existing] = await db.query<RowDataPacket[]>('SELECT id FROM users WHERE email = ?', [email]);
+    if ((existing as RowDataPacket[]).length > 0) {
       res.status(409).json({ error: 'Usuário já existe com este email' });
       return;
     }
@@ -112,7 +108,7 @@ router.post('/register', async (req, res) => {
 
     const userId = uuidv4();
     
-    await global.db.query(
+    await db.query(
       'INSERT INTO users (id, name, email, password, company_name, cnpj, business_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [userId, name, email, hashedPassword, companyName, cnpj || null, businessType || null]
     );
@@ -124,7 +120,7 @@ router.post('/register', async (req, res) => {
     ];
 
     for (const source of defaultIncomeSources) {
-      await global.db.query(
+      await db.query(
         'INSERT INTO income_sources (id, user_id, name, description, color, is_active) VALUES (?, ?, ?, ?, ?, ?)',
         [uuidv4(), userId, source.name, source.description, source.color, 1]
       );
@@ -137,7 +133,7 @@ router.post('/register', async (req, res) => {
     ];
 
     for (const category of defaultExpenseCategories) {
-      await global.db.query(
+      await db.query(
         'INSERT INTO expense_categories (id, user_id, name, description, color, is_active) VALUES (?, ?, ?, ?, ?, ?)',
         [uuidv4(), userId, category.name, category.description, category.color, 1]
       );
@@ -180,8 +176,8 @@ router.get('/me', authenticateToken, async (req, res) => {
     if (!userId) {
       return res.status(401).json({ error: 'Não autenticado' });
     }
-    const [users] = await global.db.query('SELECT * FROM users WHERE id = ?', [userId]);
-    const user = users[0];
+    const [users] = await db.query<RowDataPacket[]>('SELECT * FROM users WHERE id = ?', [userId]);
+    const user = (users as RowDataPacket[])[0];
     if (!user) {
       return res.status(404).json({ error: 'Usuário não encontrado' });
     }
@@ -189,7 +185,9 @@ router.get('/me', authenticateToken, async (req, res) => {
     res.json({ user: userWithoutPassword });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar usuário autenticado' });
+    return;
   }
+  return;
 });
 
 export default router;

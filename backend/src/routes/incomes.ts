@@ -37,6 +37,12 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
 
     const [incomes] = await db.query<RowDataPacket[]>(query, params);
 
+    // Padronizar campo date para string ISO yyyy-MM-dd
+    const formattedIncomes = (incomes as any[]).map((inc) => ({
+      ...inc,
+      date: inc.date ? inc.date.toISOString().split('T')[0] : null,
+    }));
+
     // Buscar total de receitas no período
     let totalQuery = 'SELECT SUM(amount) as total FROM incomes WHERE user_id = ?';
     const totalParams: any[] = [userId];
@@ -57,12 +63,12 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
 
     res.json({
       success: true,
-      data: incomes,
+      data: formattedIncomes,
       total,
       pagination: {
         limit: Number(limit),
         offset: Number(offset),
-        count: incomes.length
+        count: formattedIncomes.length
       }
     });
   } catch (error) {
@@ -96,7 +102,10 @@ router.post('/', authenticateToken, async (req: any, res: Response) => {
       INNER JOIN income_sources s ON i.source_id = s.id
       WHERE i.id = ?
     `, [incomeId]);
-    res.status(201).json({ success: true, data: (incomeRows as RowDataPacket[])[0] });
+    // Padronizar campo date
+    const income = (incomeRows as any[])[0];
+    if (income && income.date) income.date = income.date.toISOString().split('T')[0];
+    res.status(201).json({ success: true, data: income });
   } catch (error) {
     throw error;
   }
@@ -132,7 +141,10 @@ router.put('/:id', authenticateToken, async (req: any, res: Response) => {
       INNER JOIN income_sources s ON i.source_id = s.id
       WHERE i.id = ?
     `, [id]);
-    res.json({ success: true, data: (incomeRows as RowDataPacket[])[0] });
+    // Padronizar campo date
+    const income = (incomeRows as any[])[0];
+    if (income && income.date) income.date = income.date.toISOString().split('T')[0];
+    res.json({ success: true, data: income });
   } catch (error) {
     throw error;
   }

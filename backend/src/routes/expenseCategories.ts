@@ -30,9 +30,9 @@ router.post('/', authenticateToken, async (req: any, res: Response) => {
       [categoryId, userId, name, color, description, isActive ? 1 : 1]
     );
     const [categoryRows]: [any[], any] = await db.query('SELECT * FROM expense_categories WHERE id = ?', [categoryId]);
-    res.status(201).json({ success: true, data: categoryRows[0] });
+    return res.status(201).json({ success: true, data: categoryRows[0] });
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao criar categoria' });
+    return res.status(500).json({ error: 'Erro ao criar categoria' });
   }
 });
 
@@ -51,9 +51,9 @@ router.put('/:id', authenticateToken, async (req: any, res: Response) => {
       [name, color, description, isActive ? 1 : 0, id, userId]
     );
     const [categoryRows]: [any[], any] = await db.query('SELECT * FROM expense_categories WHERE id = ?', [id]);
-    res.json({ success: true, data: categoryRows[0] });
+    return res.json({ success: true, data: categoryRows[0] });
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao atualizar categoria' });
+    return res.status(500).json({ error: 'Erro ao atualizar categoria' });
   }
 });
 
@@ -67,7 +67,7 @@ router.delete('/:id', authenticateToken, async (req: any, res: Response) => {
       return res.status(404).json({ error: 'Categoria não encontrada' });
     }
     await db.query('DELETE FROM expense_categories WHERE id = ? AND user_id = ?', [id, userId]);
-    res.json({ success: true, message: 'Categoria excluída com sucesso' });
+    return res.json({ success: true, message: 'Categoria excluída com sucesso' });
   } catch (error) {
     res.status(500).json({ error: 'Erro ao excluir categoria' });
     return;

@@ -400,7 +400,9 @@ export const Despesas: React.FC = () => {
                 {safeExpenses
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                   .map((expense) => {
-                    const category = safeExpenseCategories.find(c => c.id === expense.categoryId);
+                    // Categoria: buscar pelo id
+                    const categoryName = (safeExpenseCategories.find(c => c.id === expense.categoryId)?.name) || 'Categoria não encontrada';
+                    const categoryColor = (safeExpenseCategories.find(c => c.id === expense.categoryId)?.color) || '#6b7280';
                     return (
                     <div key={expense.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between">
@@ -408,7 +410,7 @@ export const Despesas: React.FC = () => {
                           <div className="flex items-center space-x-3 mb-2">
                             <div 
                               className="w-4 h-4 rounded-full" 
-                              style={{ backgroundColor: category?.color || '#6b7280' }}
+                              style={{ backgroundColor: categoryColor }}
                             />
                             <h3 className="font-medium text-gray-900">{expense.description}</h3>
                             
@@ -426,7 +428,7 @@ export const Despesas: React.FC = () => {
                           </div>
                           
                           <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <span>{category?.name || 'Categoria não encontrada'}</span>
+                            <span>{categoryName}</span>
                             <span>•</span>
                             <span>{format(expense.date, 'dd/MM/yyyy', { locale: ptBR })}</span>
                             {expense.projectName && (

@@ -11,7 +11,12 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
   try {
     const userId = req.userId;
     const [expenses] = await db.query<RowDataPacket[]>('SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC, created_at DESC', [userId]);
-    res.json(expenses);
+    // Padronizar campo date para string ISO yyyy-MM-dd
+    const formattedExpenses = (expenses as any[]).map((exp) => ({
+      ...exp,
+      date: exp.date ? exp.date.toISOString().split('T')[0] : null,
+    }));
+    res.json(formattedExpenses);
   } catch (error) {
     res.status(500).json({ error: 'Erro ao buscar despesas' });
   }
@@ -23,7 +28,8 @@ router.post('/', authenticateToken, async (req: any, res: Response) => {
     const userId = req.userId;
     const { categoryId, description, amount, date, type, status, paymentMethod, supplier, invoiceNumber, dueDate, notes } = req.body;
     if (!categoryId || !description || !amount || !date) {
-      return res.status(400).json({ error: 'Categoria, descrição, valor e data são obrigatórios' });
+      res.status(400).json({ error: 'Categoria, descrição, valor e data são obrigatórios' });
+      return;
     }
     const expenseId = uuidv4();
     await db.query(
@@ -31,9 +37,14 @@ router.post('/', authenticateToken, async (req: any, res: Response) => {
       [expenseId, userId, categoryId, description, amount, date, type || 'variavel', status || 'pendente', paymentMethod, supplier, invoiceNumber, dueDate, notes]
     );
     const [expenseRows] = await db.query<RowDataPacket[]>('SELECT * FROM expenses WHERE id = ?', [expenseId]);
-    res.status(201).json({ success: true, data: (expenseRows as RowDataPacket[])[0] });
+    // Padronizar campo date
+    const expense = (expenseRows as any[])[0];
+    if (expense && expense.date) expense.date = expense.date.toISOString().split('T')[0];
+    res.status(201).json({ success: true, data: expense });
+    return;
   } catch (error) {
     res.status(500).json({ error: 'Erro ao criar despesa' });
+    return;
   }
 });
 
@@ -52,9 +63,12 @@ router.put('/:id', authenticateToken, async (req: any, res: Response) => {
       [categoryId, description, amount, date, type, status, paymentMethod, supplier, invoiceNumber, dueDate, notes, id, userId]
     );
     const [expenseRows] = await db.query<RowDataPacket[]>('SELECT * FROM expenses WHERE id = ?', [id]);
-    res.json({ success: true, data: (expenseRows as RowDataPacket[])[0] });
+    // Padronizar campo date
+    const expense = (expenseRows as any[])[0];
+    if (expense && expense.date) expense.date = expense.date.toISOString().split('T')[0];
+    return res.json({ success: true, data: expense });
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao atualizar despesa' });
+    return res.status(500).json({ error: 'Erro ao atualizar despesa' });
   }
 });
 
@@ -68,9 +82,9 @@ router.delete('/:id', authenticateToken, async (req: any, res: Response) => {
       return res.status(404).json({ error: 'Despesa não encontrada' });
     }
     await db.query('DELETE FROM expenses WHERE id = ? AND user_id = ?', [id, userId]);
-    res.json({ success: true, message: 'Despesa excluída com sucesso' });
+    return res.json({ success: true, message: 'Despesa excluída com sucesso' });
   } catch (error) {
-    res.status(500).json({ error: 'Erro ao excluir despesa' });
+    return res.status(500).json({ error: 'Erro ao excluir despesa' });
   }
 });
 

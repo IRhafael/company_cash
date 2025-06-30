@@ -15,12 +15,13 @@ import { Income, IncomeSource } from '@/types';
 import { Plus, Edit, Trash2, TrendingUp, Calendar, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import api from '@/services/api';
 
 const incomeSchema = z.object({
   description: z.string().min(1, 'Descrição é obrigatória'),
   amount: z.number().min(0.01, 'Valor deve ser maior que zero'),
   date: z.string().min(1, 'Data é obrigatória'),
-  sourceId: z.string().min(1, 'Fonte é obrigatória'),
+  sourceName: z.string().min(1, 'Fonte de renda é obrigatória'),
   type: z.enum(['recorrente', 'unico']),
   status: z.enum(['confirmado', 'pendente', 'cancelado']).default('confirmado'),
   projectName: z.string().optional(),
@@ -49,23 +50,35 @@ export const Receitas: React.FC = () => {
 
   const onSubmit = async (data: IncomeFormData) => {
     try {
+      // 1. Procurar fonte de renda pelo nome (case-insensitive)
+      let source = safeIncomeSources.find(
+        (s) => s.name.trim().toLowerCase() === data.sourceName.trim().toLowerCase()
+      );
+      // 2. Se não existir, criar uma nova fonte
+      if (!source) {
+        // Definir tipo e cor padrão
+        source = await api.incomeSources.create({
+          name: data.sourceName.trim(),
+          type: 'servicos', // ou outro tipo padrão
+          color: '#3B82F6', // cor padrão
+        });
+      }
+      // 3. Montar dados para o backend
       const incomeData = {
         description: data.description,
         amount: data.amount,
         date: data.date,
-        sourceId: data.sourceId,
+        sourceId: source.id,
         type: data.type,
         status: data.status,
         projectName: data.projectName,
         campaignName: data.campaignName,
       };
-
       if (editingIncome) {
         await updateIncome(editingIncome.id, incomeData);
       } else {
         await createIncome(incomeData);
       }
-
       setIsDialogOpen(false);
       setEditingIncome(null);
       reset();
@@ -80,7 +93,7 @@ export const Receitas: React.FC = () => {
     setValue('description', income.description);
     setValue('amount', income.amount);
     setValue('date', typeof income.date === 'string' ? income.date : income.date.toISOString().split('T')[0]);
-    setValue('sourceId', income.sourceId);
+    setValue('sourceName', income.source?.name || '');
     setValue('type', income.type);
     setValue('status', income.status);
     setValue('projectName', income.projectName || '');
@@ -207,27 +220,14 @@ export const Receitas: React.FC = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label>Fonte de Renda</Label>
-                  <Select onValueChange={(value) => setValue('sourceId', value)}>
-                    <SelectTrigger>
-                      <SelectValue placeholder="Selecione a fonte" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {safeIncomeSources.map((source) => (
-                        <SelectItem key={source.id} value={source.id}>
-                          <div className="flex items-center">
-                            <div 
-                              className="w-3 h-3 rounded-full mr-2" 
-                              style={{ backgroundColor: source.color }}
-                            />
-                            {source.name}
-                          </div>
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                  {errors.sourceId && (
-                    <p className="text-sm text-red-500">{errors.sourceId.message}</p>
+                  <Label htmlFor="sourceName">Fonte de Renda</Label>
+                  <Input
+                    id="sourceName"
+                    placeholder="Ex: Honorários Contábeis, Consultoria, etc."
+                    {...register('sourceName')}
+                  />
+                  {errors.sourceName && (
+                    <p className="text-sm text-red-500">{errors.sourceName.message}</p>
                   )}
                 </div>
 
@@ -378,7 +378,9 @@ export const Receitas: React.FC = () => {
                 {safeIncomes
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
                   .map((income) => {
-                    const source = safeIncomeSources.find(s => s.id === income.sourceId);
+                    // Fonte de renda: buscar pelo id da fonte
+                    const sourceName = (safeIncomeSources.find(s => s.id === income.sourceId)?.name) || 'Fonte não encontrada';
+                    const sourceColor = (safeIncomeSources.find(s => s.id === income.sourceId)?.color) || '#6b7280';
                     return (
                     <div key={income.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between">
@@ -386,7 +388,7 @@ export const Receitas: React.FC = () => {
                           <div className="flex items-center space-x-3 mb-2">
                             <div 
                               className="w-4 h-4 rounded-full" 
-                              style={{ backgroundColor: source?.color || '#6b7280' }}
+                              style={{ backgroundColor: sourceColor }}
                             />
                             <h3 className="font-medium text-gray-900">{income.description}</h3>
                             <Badge className={getStatusColor(income.status)}>
@@ -398,7 +400,7 @@ export const Receitas: React.FC = () => {
                           </div>
                           
                           <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <span>{source?.name || 'Fonte não encontrada'}</span>
+                            <span>{sourceName}</span>
                             <span>•</span>
                             <span>{format(income.date, 'dd/MM/yyyy', { locale: ptBR })}</span>
                             {income.projectName && (

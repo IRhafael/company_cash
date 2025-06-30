@@ -3,9 +3,7 @@ import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
-import { Database } from 'sqlite';
 import { initializeDatabase } from './database/init';
-import { attachDatabase } from './middleware/database';
 import authRoutes from './routes/auth';
 import incomeRoutes from './routes/incomes';
 import expenseRoutes from './routes/expenses';
@@ -20,9 +18,6 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 3001;
-
-// Global database variable
-export let db: Database;
 
 // Rate limiting
 const limiter = rateLimit({
@@ -60,10 +55,7 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
-// Database middleware - adiciona a instância do db ao request
-app.use(attachDatabase);
-
-// Routes
+// Rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/incomes', incomeRoutes);
 app.use('/api/expenses', expenseRoutes);
@@ -80,13 +72,11 @@ app.use('*', (req, res) => {
   res.status(404).json({ error: 'Rota não encontrada' });
 });
 
-// Initialize database and start server
+// Inicializar banco e iniciar servidor
 async function startServer() {
   try {
-    db = await initializeDatabase();
-    global.db = db; // Disponibilizar globalmente para evitar dependência circular
+    await initializeDatabase(); // Garante que as tabelas existem
     logger.info('Base de dados inicializada com sucesso');
-    
     app.listen(PORT, () => {
       logger.info(`Servidor rodando na porta ${PORT}`);
       logger.info(`API disponível em http://localhost:${PORT}/api`);
@@ -100,17 +90,11 @@ async function startServer() {
 // Graceful shutdown
 process.on('SIGINT', async () => {
   logger.info('Encerrando servidor...');
-  if (db) {
-    await db.close();
-  }
   process.exit(0);
 });
 
 process.on('SIGTERM', async () => {
   logger.info('Encerrando servidor...');
-  if (db) {
-    await db.close();
-  }
   process.exit(0);
 });
 
