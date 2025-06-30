@@ -13,7 +13,7 @@ import { Badge } from '@/components/ui/badge';
 import { useAppContext } from '@/contexts/AppContext';
 import { TaxObligation } from '@/types';
 import { Plus, Edit, Trash2, Calendar, DollarSign, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { format, isAfter, parseISO } from 'date-fns';
+import { format, isAfter, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
 const taxObligationSchema = z.object({
@@ -352,7 +352,24 @@ export const ObrigacoesTributarias: React.FC = () => {
                       </span>
                       <span className="flex items-center gap-1">
                         <Calendar className="w-3 h-3" />
-                        Vence em {format(obligation.dueDate, "dd/MM/yyyy", { locale: ptBR })}
+                        {(() => {
+                          let dateObj: Date | null = null;
+                          if (obligation.dueDate) {
+                            if (typeof obligation.dueDate === 'string') {
+                              // Tenta parsear string ISO ou yyyy-MM-dd
+                              try {
+                                dateObj = parseISO(obligation.dueDate);
+                              } catch {
+                                dateObj = null;
+                              }
+                            } else if (obligation.dueDate instanceof Date) {
+                              dateObj = obligation.dueDate;
+                            }
+                          }
+                          return dateObj && isValid(dateObj)
+                            ? <>Vence em {format(dateObj, 'dd/MM/yyyy', { locale: ptBR })}</>
+                            : <span className="text-destructive">Data inválida</span>;
+                        })()}
                       </span>
                       <span>Ref: {obligation.referenceMonth}</span>
                     </div>

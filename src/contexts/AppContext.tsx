@@ -133,15 +133,15 @@ function appReducer(state: AppState, action: AppAction): AppState {
     
     // Tax Obligation actions
     case 'SET_TAX_OBLIGATIONS':
-      return { ...state, taxObligations: action.payload };
+      return { ...state, taxObligations: Array.isArray(action.payload) ? action.payload : [] };
     
     case 'ADD_TAX_OBLIGATION':
-      return { ...state, taxObligations: [...state.taxObligations, action.payload] };
+      return { ...state, taxObligations: [...(Array.isArray(state.taxObligations) ? state.taxObligations : []), action.payload] };
     
     case 'UPDATE_TAX_OBLIGATION':
       return {
         ...state,
-        taxObligations: state.taxObligations.map(obligation => 
+        taxObligations: (Array.isArray(state.taxObligations) ? state.taxObligations : []).map(obligation => 
           obligation.id === action.payload.id ? action.payload : obligation
         )
       };
@@ -149,7 +149,7 @@ function appReducer(state: AppState, action: AppAction): AppState {
     case 'DELETE_TAX_OBLIGATION':
       return {
         ...state,
-        taxObligations: state.taxObligations.filter(obligation => obligation.id !== action.payload)
+        taxObligations: (Array.isArray(state.taxObligations) ? state.taxObligations : []).filter(obligation => obligation.id !== action.payload)
       };
     
     // Income Source actions
@@ -592,5 +592,3 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     </AppContext.Provider>
   );
 };
-
-export default AppContext;

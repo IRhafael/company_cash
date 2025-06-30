@@ -24,19 +24,20 @@ export async function initializeDatabase() {
     )
   `);
 
-  await db.execute(`
-    CREATE TABLE IF NOT EXISTS income_sources (
-      id VARCHAR(64) PRIMARY KEY,
-      user_id VARCHAR(64) NOT NULL,
-      name VARCHAR(255) NOT NULL,
-      description TEXT,
-      color VARCHAR(16) DEFAULT '#3B82F6',
-      is_active TINYINT(1) DEFAULT 1,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    )
-  `);
+await db.execute(`
+  CREATE TABLE IF NOT EXISTS income_sources (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(64) NOT NULL,
+    name VARCHAR(255) NOT NULL,
+    type VARCHAR(32) DEFAULT 'service',
+    description TEXT,
+    color VARCHAR(16) DEFAULT '#3B82F6',
+    is_active TINYINT(1) DEFAULT 1,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  )
+`);
 
   await db.execute(`
     CREATE TABLE IF NOT EXISTS expense_categories (

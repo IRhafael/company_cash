@@ -9,7 +9,7 @@ async function recreateDatabase() {
     const db = await mysql.createConnection({
       host: 'localhost',
       user: 'italo',
-      password: '', // Adapte se necessário
+      password: '1234', // Adapte se necessário
       database: 'company',
       multipleStatements: true,
     });

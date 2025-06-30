@@ -3,6 +3,17 @@ import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
 import { logger } from '../utils/logger';
+import { authenticateToken } from '../middleware/auth';
+
+// Extende a interface Request para incluir userId
+declare global {
+  namespace Express {
+    interface Request {
+      userId?: string;
+      user?: any;
+    }
+  }
+}
 
 const router = express.Router();
 
@@ -158,6 +169,26 @@ router.post('/register', async (req, res) => {
     logger.error('Erro no registro:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
     return;
+  }
+});
+
+// Rota para obter usuário autenticado
+// GET /api/auth/me
+router.get('/me', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.userId || (req.user && req.user.userId);
+    if (!userId) {
+      return res.status(401).json({ error: 'Não autenticado' });
+    }
+    const [users] = await global.db.query('SELECT * FROM users WHERE id = ?', [userId]);
+    const user = users[0];
+    if (!user) {
+      return res.status(404).json({ error: 'Usuário não encontrado' });
+    }
+    const { password, ...userWithoutPassword } = user;
+    res.json({ user: userWithoutPassword });
+  } catch (error) {
+    res.status(500).json({ error: 'Erro ao buscar usuário autenticado' });
   }
 });
 
