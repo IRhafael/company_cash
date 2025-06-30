@@ -32,8 +32,12 @@ const expenseSchema = z.object({
 type ExpenseFormData = z.infer<typeof expenseSchema>;
 
 export const Despesas: React.FC = () => {
-  const { state, dispatch } = useAppContext();
-  const { expenses, expenseCategories } = state;
+  const { state, createExpense, updateExpense, deleteExpense } = useAppContext();
+  
+  // Garantir que os arrays existem antes de usar
+  const safeExpenses = Array.isArray(state.expenses) ? state.expenses : [];
+  const safeExpenseCategories = Array.isArray(state.expenseCategories) ? state.expenseCategories : [];
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingExpense, setEditingExpense] = useState<Expense | null>(null);
 
@@ -47,43 +51,39 @@ export const Despesas: React.FC = () => {
 
   const watchType = watch('type');
 
-  const onSubmit = (data: ExpenseFormData) => {
-    const categoryId = data.categoryId;
-    const category = expenseCategories.find(c => c.id === categoryId);
-    
-    if (!category) return;
+  const onSubmit = async (data: ExpenseFormData) => {
+    try {
+      const expenseData = {
+        description: data.description,
+        amount: data.amount,
+        date: data.date,
+        categoryId: data.categoryId,
+        type: data.type,
+        isRecurring: data.isRecurring,
+        projectName: data.projectName,
+        tags: data.tags ? data.tags.split(',').map(tag => tag.trim()) : undefined,
+        receiptUrl: data.receiptUrl,
+      };
 
-    const expense: Expense = {
-      id: editingExpense?.id || Math.random().toString(36).substr(2, 9),
-      description: data.description,
-      amount: data.amount,
-      date: new Date(data.date),
-      categoryId,
-      category,
-      type: data.type,
-      isRecurring: data.isRecurring,
-      projectName: data.projectName,
-      tags: data.tags ? data.tags.split(',').map(tag => tag.trim()) : undefined,
-      receiptUrl: data.receiptUrl,
-      paymentStatus: 'pago', // Valor padrão
-    };
+      if (editingExpense) {
+        await updateExpense(editingExpense.id, expenseData);
+      } else {
+        await createExpense(expenseData);
+      }
 
-    if (editingExpense) {
-      dispatch({ type: 'UPDATE_EXPENSE', payload: expense });
-    } else {
-      dispatch({ type: 'ADD_EXPENSE', payload: expense });
+      setIsDialogOpen(false);
+      setEditingExpense(null);
+      reset();
+    } catch (error) {
+      console.error('Erro ao salvar despesa:', error);
     }
-
-    setIsDialogOpen(false);
-    setEditingExpense(null);
-    reset();
   };
 
   const handleEdit = (expense: Expense) => {
     setEditingExpense(expense);
     setValue('description', expense.description);
     setValue('amount', expense.amount);
-    setValue('date', format(expense.date, 'yyyy-MM-dd'));
+    setValue('date', typeof expense.date === 'string' ? expense.date : expense.date.toISOString().split('T')[0]);
     setValue('categoryId', expense.categoryId);
     setValue('type', expense.type);
     setValue('isRecurring', expense.isRecurring);
@@ -93,10 +93,20 @@ export const Despesas: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta despesa?')) {
-      dispatch({ type: 'DELETE_EXPENSE', payload: id });
+  const handleDelete = async (expense: Expense) => {
+    if (window.confirm('Tem certeza que deseja excluir esta despesa?')) {
+      try {
+        await deleteExpense(expense.id);
+      } catch (error) {
+        console.error('Erro ao excluir despesa:', error);
+      }
     }
+  };
+
+  const closeDialog = () => {
+    setIsDialogOpen(false);
+    setEditingExpense(null);
+    reset();
   };
 
   const formatCurrency = (value: number) => {
@@ -107,14 +117,14 @@ export const Despesas: React.FC = () => {
   };
 
   // Calcular estatísticas
-  const totalExpenses = expenses.reduce((sum, expense) => sum + expense.amount, 0);
-  const professionalExpenses = expenses
+  const totalExpenses = safeExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  const professionalExpenses = safeExpenses
     .filter(expense => expense.type === 'profissional')
     .reduce((sum, expense) => sum + expense.amount, 0);
-  const personalExpenses = expenses
+  const personalExpenses = safeExpenses
     .filter(expense => expense.type === 'pessoal')
     .reduce((sum, expense) => sum + expense.amount, 0);
-  const recurringExpenses = expenses
+  const recurringExpenses = safeExpenses
     .filter(expense => expense.isRecurring)
     .reduce((sum, expense) => sum + expense.amount, 0);
 
@@ -193,7 +203,7 @@ export const Despesas: React.FC = () => {
                       <SelectValue placeholder="Selecione a categoria" />
                     </SelectTrigger>
                     <SelectContent>
-                      {expenseCategories.map((category) => (
+                      {safeExpenseCategories.map((category) => (
                         <SelectItem key={category.id} value={category.id}>
                           <div className="flex items-center">
                             <div 
@@ -308,7 +318,7 @@ export const Despesas: React.FC = () => {
                 {formatCurrency(totalExpenses)}
               </div>
               <p className="text-xs text-gray-600 mt-1">
-                {expenses.length} despesa{expenses.length !== 1 ? 's' : ''} registrada{expenses.length !== 1 ? 's' : ''}
+                {safeExpenses.length} despesa{safeExpenses.length !== 1 ? 's' : ''} registrada{safeExpenses.length !== 1 ? 's' : ''}
               </p>
             </CardContent>
           </Card>
@@ -368,7 +378,7 @@ export const Despesas: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {expenses.length === 0 ? (
+            {safeExpenses.length === 0 ? (
               <div className="text-center py-12">
                 <TrendingDown className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -387,16 +397,18 @@ export const Despesas: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {expenses
+                {safeExpenses
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((expense) => (
+                  .map((expense) => {
+                    const category = safeExpenseCategories.find(c => c.id === expense.categoryId);
+                    return (
                     <div key={expense.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
                             <div 
                               className="w-4 h-4 rounded-full" 
-                              style={{ backgroundColor: expense.category.color }}
+                              style={{ backgroundColor: category?.color || '#6b7280' }}
                             />
                             <h3 className="font-medium text-gray-900">{expense.description}</h3>
                             
@@ -414,7 +426,7 @@ export const Despesas: React.FC = () => {
                           </div>
                           
                           <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <span>{expense.category.name}</span>
+                            <span>{category?.name || 'Categoria não encontrada'}</span>
                             <span>•</span>
                             <span>{format(expense.date, 'dd/MM/yyyy', { locale: ptBR })}</span>
                             {expense.projectName && (
@@ -454,7 +466,7 @@ export const Despesas: React.FC = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDelete(expense.id)}
+                              onClick={() => handleDelete(expense)}
                               className="text-red-600 hover:text-red-700"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -463,7 +475,8 @@ export const Despesas: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
               </div>
             )}
           </CardContent>

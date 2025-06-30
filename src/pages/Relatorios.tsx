@@ -42,7 +42,13 @@ const COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4'
 export const Relatorios: React.FC = () => {
   const { state } = useAppContext();
   const { financialSummary, monthlyData, reportMetrics } = useFinancialCalculations();
-  const { incomes, expenses, incomeSources, expenseCategories } = state;
+  
+  // Garantir que os arrays existem antes de usar
+  const safeIncomes = Array.isArray(state.incomes) ? state.incomes : [];
+  const safeExpenses = Array.isArray(state.expenses) ? state.expenses : [];
+  const safeIncomeSources = Array.isArray(state.incomeSources) ? state.incomeSources : [];
+  const safeExpenseCategories = Array.isArray(state.expenseCategories) ? state.expenseCategories : [];
+  
   const [selectedPeriod, setSelectedPeriod] = useState('6m');
 
   const formatCurrency = (value: number) => {
@@ -78,12 +84,12 @@ export const Relatorios: React.FC = () => {
         startDate = subMonths(now, 6);
     }
 
-    const filteredIncomes = incomes.filter(income => 
-      income.date >= startDate
+    const filteredIncomes = safeIncomes.filter(income => 
+      (typeof income.date === 'string' ? new Date(income.date) : income.date) >= startDate
     );
     
-    const filteredExpenses = expenses.filter(expense => 
-      expense.date >= startDate
+    const filteredExpenses = safeExpenses.filter(expense => 
+      (typeof expense.date === 'string' ? new Date(expense.date) : expense.date) >= startDate
     );
 
     return { filteredIncomes, filteredExpenses };
@@ -92,7 +98,7 @@ export const Relatorios: React.FC = () => {
   const { filteredIncomes, filteredExpenses } = getDataByPeriod(selectedPeriod);
 
   // Dados para gráfico de receitas por fonte
-  const incomeBySource = incomeSources.map(source => {
+  const incomeBySource = safeIncomeSources.map(source => {
     const total = filteredIncomes
       .filter(income => income.sourceId === source.id)
       .reduce((sum, income) => sum + income.amount, 0);
@@ -104,7 +110,7 @@ export const Relatorios: React.FC = () => {
   }).filter(item => item.value > 0);
 
   // Dados para gráfico de despesas por categoria
-  const expenseByCategory = expenseCategories.map(category => {
+  const expenseByCategory = safeExpenseCategories.map(category => {
     const total = filteredExpenses
       .filter(expense => expense.categoryId === category.id)
       .reduce((sum, expense) => sum + expense.amount, 0);
@@ -126,12 +132,12 @@ export const Relatorios: React.FC = () => {
       const monthStart = startOfMonth(date);
       const monthEnd = endOfMonth(date);
       
-      const monthIncomes = incomes.filter(income => 
-        isWithinInterval(income.date, { start: monthStart, end: monthEnd })
+      const monthIncomes = safeIncomes.filter(income => 
+        isWithinInterval(typeof income.date === 'string' ? new Date(income.date) : income.date, { start: monthStart, end: monthEnd })
       );
       
-      const monthExpenses = expenses.filter(expense => 
-        isWithinInterval(expense.date, { start: monthStart, end: monthEnd })
+      const monthExpenses = safeExpenses.filter(expense => 
+        isWithinInterval(typeof expense.date === 'string' ? new Date(expense.date) : expense.date, { start: monthStart, end: monthEnd })
       );
       
       const income = monthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
@@ -155,7 +161,7 @@ export const Relatorios: React.FC = () => {
   const roiData = Object.entries(reportMetrics.roiBySource).map(([source, roi]) => ({
     fonte: source,
     roi: roi,
-    color: incomeSources.find(s => s.name === source)?.color || '#6B7280'
+    color: safeIncomeSources.find(s => s.name === source)?.color || '#6B7280'
   })).sort((a, b) => b.roi - a.roi);
 
   // Comparação Pessoal vs Profissional

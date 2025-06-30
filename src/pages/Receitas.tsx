@@ -30,8 +30,12 @@ const incomeSchema = z.object({
 type IncomeFormData = z.infer<typeof incomeSchema>;
 
 export const Receitas: React.FC = () => {
-  const { state, dispatch } = useAppContext();
-  const { incomes, incomeSources } = state;
+  const { state, createIncome, updateIncome, deleteIncome } = useAppContext();
+  
+  // Garantir que os arrays existem antes de usar
+  const safeIncomes = Array.isArray(state.incomes) ? state.incomes : [];
+  const safeIncomeSources = Array.isArray(state.incomeSources) ? state.incomeSources : [];
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingIncome, setEditingIncome] = useState<Income | null>(null);
 
@@ -43,41 +47,39 @@ export const Receitas: React.FC = () => {
     }
   });
 
-  const onSubmit = (data: IncomeFormData) => {
-    const sourceId = data.sourceId;
-    const source = incomeSources.find(s => s.id === sourceId);
-    
-    if (!source) return;
+  const onSubmit = async (data: IncomeFormData) => {
+    try {
+      const incomeData = {
+        description: data.description,
+        amount: data.amount,
+        date: data.date,
+        sourceId: data.sourceId,
+        type: data.type,
+        status: data.status,
+        projectName: data.projectName,
+        campaignName: data.campaignName,
+      };
 
-    const income: Income = {
-      id: editingIncome?.id || Math.random().toString(36).substr(2, 9),
-      description: data.description,
-      amount: data.amount,
-      date: new Date(data.date),
-      sourceId,
-      source,
-      type: data.type,
-      status: data.status,
-      projectName: data.projectName,
-      campaignName: data.campaignName,
-    };
+      if (editingIncome) {
+        await updateIncome(editingIncome.id, incomeData);
+      } else {
+        await createIncome(incomeData);
+      }
 
-    if (editingIncome) {
-      dispatch({ type: 'UPDATE_INCOME', payload: income });
-    } else {
-      dispatch({ type: 'ADD_INCOME', payload: income });
+      setIsDialogOpen(false);
+      setEditingIncome(null);
+      reset();
+    } catch (error) {
+      console.error('Erro ao salvar receita:', error);
+      // Aqui você pode adicionar um toast de erro se quiser
     }
-
-    setIsDialogOpen(false);
-    setEditingIncome(null);
-    reset();
   };
 
   const handleEdit = (income: Income) => {
     setEditingIncome(income);
     setValue('description', income.description);
     setValue('amount', income.amount);
-    setValue('date', format(income.date, 'yyyy-MM-dd'));
+    setValue('date', typeof income.date === 'string' ? income.date : income.date.toISOString().split('T')[0]);
     setValue('sourceId', income.sourceId);
     setValue('type', income.type);
     setValue('status', income.status);
@@ -86,10 +88,20 @@ export const Receitas: React.FC = () => {
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    if (confirm('Tem certeza que deseja excluir esta receita?')) {
-      dispatch({ type: 'DELETE_INCOME', payload: id });
+  const handleDelete = async (income: Income) => {
+    if (window.confirm('Tem certeza que deseja excluir esta receita?')) {
+      try {
+        await deleteIncome(income.id);
+      } catch (error) {
+        console.error('Erro ao excluir receita:', error);
+      }
     }
+  };
+
+  const closeDialog = () => {
+    setIsDialogOpen(false);
+    setEditingIncome(null);
+    reset();
   };
 
   const formatCurrency = (value: number) => {
@@ -118,11 +130,11 @@ export const Receitas: React.FC = () => {
   };
 
   // Calcular estatísticas
-  const totalIncome = incomes.reduce((sum, income) => sum + income.amount, 0);
-  const confirmedIncome = incomes
+  const totalIncome = safeIncomes.reduce((sum, income) => sum + income.amount, 0);
+  const confirmedIncome = safeIncomes
     .filter(income => income.status === 'confirmado')
     .reduce((sum, income) => sum + income.amount, 0);
-  const pendingIncome = incomes
+  const pendingIncome = safeIncomes
     .filter(income => income.status === 'pendente')
     .reduce((sum, income) => sum + income.amount, 0);
 
@@ -201,7 +213,7 @@ export const Receitas: React.FC = () => {
                       <SelectValue placeholder="Selecione a fonte" />
                     </SelectTrigger>
                     <SelectContent>
-                      {incomeSources.map((source) => (
+                      {safeIncomeSources.map((source) => (
                         <SelectItem key={source.id} value={source.id}>
                           <div className="flex items-center">
                             <div 
@@ -299,7 +311,7 @@ export const Receitas: React.FC = () => {
                 {formatCurrency(totalIncome)}
               </div>
               <p className="text-xs text-gray-600 mt-1">
-                {incomes.length} receita{incomes.length !== 1 ? 's' : ''} registrada{incomes.length !== 1 ? 's' : ''}
+                {safeIncomes.length} receita{safeIncomes.length !== 1 ? 's' : ''} registrada{safeIncomes.length !== 1 ? 's' : ''}
               </p>
             </CardContent>
           </Card>
@@ -344,7 +356,7 @@ export const Receitas: React.FC = () => {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {incomes.length === 0 ? (
+            {safeIncomes.length === 0 ? (
               <div className="text-center py-12">
                 <TrendingUp className="h-12 w-12 text-gray-400 mx-auto mb-4" />
                 <h3 className="text-lg font-medium text-gray-900 mb-2">
@@ -363,16 +375,18 @@ export const Receitas: React.FC = () => {
               </div>
             ) : (
               <div className="space-y-4">
-                {incomes
+                {safeIncomes
                   .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
-                  .map((income) => (
+                  .map((income) => {
+                    const source = safeIncomeSources.find(s => s.id === income.sourceId);
+                    return (
                     <div key={income.id} className="border rounded-lg p-4 hover:bg-gray-50 transition-colors">
                       <div className="flex items-center justify-between">
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
                             <div 
                               className="w-4 h-4 rounded-full" 
-                              style={{ backgroundColor: income.source.color }}
+                              style={{ backgroundColor: source?.color || '#6b7280' }}
                             />
                             <h3 className="font-medium text-gray-900">{income.description}</h3>
                             <Badge className={getStatusColor(income.status)}>
@@ -384,7 +398,7 @@ export const Receitas: React.FC = () => {
                           </div>
                           
                           <div className="flex items-center space-x-4 text-sm text-gray-600">
-                            <span>{income.source.name}</span>
+                            <span>{source?.name || 'Fonte não encontrada'}</span>
                             <span>•</span>
                             <span>{format(income.date, 'dd/MM/yyyy', { locale: ptBR })}</span>
                             {income.projectName && (
@@ -420,7 +434,7 @@ export const Receitas: React.FC = () => {
                             <Button
                               variant="outline"
                               size="sm"
-                              onClick={() => handleDelete(income.id)}
+                              onClick={() => handleDelete(income)}
                               className="text-red-600 hover:text-red-700"
                             >
                               <Trash2 className="h-4 w-4" />
@@ -429,7 +443,8 @@ export const Receitas: React.FC = () => {
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
               </div>
             )}
           </CardContent>

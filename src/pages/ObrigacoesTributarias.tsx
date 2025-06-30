@@ -30,8 +30,11 @@ const taxObligationSchema = z.object({
 type TaxObligationFormData = z.infer<typeof taxObligationSchema>;
 
 export const ObrigacoesTributarias: React.FC = () => {
-  const { state, dispatch } = useAppContext();
-  const { taxObligations = [] } = state;
+  const { state, createTaxObligation, updateTaxObligation, deleteTaxObligation } = useAppContext();
+  
+  // Garantir que os arrays existem antes de usar
+  const safeTaxObligations = Array.isArray(state.taxObligations) ? state.taxObligations : [];
+  
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingObligation, setEditingObligation] = useState<TaxObligation | null>(null);
 
@@ -42,56 +45,62 @@ export const ObrigacoesTributarias: React.FC = () => {
     }
   });
 
-  const onSubmit = (data: TaxObligationFormData) => {
-    const newObligation: TaxObligation = {
-      id: editingObligation?.id || Date.now().toString(),
-      description: data.description,
-      amount: Number(data.amount),
-      dueDate: parseISO(data.dueDate),
-      taxType: data.taxType,
-      status: data.status,
-      referenceMonth: data.referenceMonth,
-      notes: data.notes,
-      complianceDate: data.complianceDate ? parseISO(data.complianceDate) : undefined,
-    };
+  const onSubmit = async (data: TaxObligationFormData) => {
+    try {
+      const obligationData = {
+        description: data.description,
+        amount: Number(data.amount),
+        dueDate: data.dueDate,
+        taxType: data.taxType,
+        status: data.status,
+        referenceMonth: data.referenceMonth,
+        notes: data.notes,
+        complianceDate: data.complianceDate,
+      };
 
-    if (editingObligation) {
-      dispatch({
-        type: 'UPDATE_TAX_OBLIGATION',
-        payload: newObligation
-      });
-    } else {
-      dispatch({
-        type: 'ADD_TAX_OBLIGATION',
-        payload: newObligation
-      });
+      if (editingObligation) {
+        await updateTaxObligation(editingObligation.id, obligationData);
+      } else {
+        await createTaxObligation(obligationData);
+      }
+
+      reset();
+      setEditingObligation(null);
+      setIsDialogOpen(false);
+    } catch (error) {
+      console.error('Erro ao salvar obrigação tributária:', error);
     }
-
-    reset();
-    setEditingObligation(null);
-    setIsDialogOpen(false);
   };
 
   const handleEdit = (obligation: TaxObligation) => {
     setEditingObligation(obligation);
     setValue('description', obligation.description);
     setValue('amount', obligation.amount);
-    setValue('dueDate', format(obligation.dueDate, 'yyyy-MM-dd'));
+    setValue('dueDate', typeof obligation.dueDate === 'string' ? obligation.dueDate : obligation.dueDate.toISOString().split('T')[0]);
     setValue('taxType', obligation.taxType);
     setValue('status', obligation.status);
     setValue('referenceMonth', obligation.referenceMonth);
     setValue('notes', obligation.notes || '');
     if (obligation.complianceDate) {
-      setValue('complianceDate', format(obligation.complianceDate, 'yyyy-MM-dd'));
+      setValue('complianceDate', typeof obligation.complianceDate === 'string' ? obligation.complianceDate : obligation.complianceDate.toISOString().split('T')[0]);
     }
     setIsDialogOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    dispatch({
-      type: 'DELETE_TAX_OBLIGATION',
-      payload: id
-    });
+  const handleDelete = async (obligation: TaxObligation) => {
+    if (window.confirm('Tem certeza que deseja excluir esta obrigação tributária?')) {
+      try {
+        await deleteTaxObligation(obligation.id);
+      } catch (error) {
+        console.error('Erro ao excluir obrigação tributária:', error);
+      }
+    }
+  };
+
+  const closeDialog = () => {
+    setIsDialogOpen(false);
+    setEditingObligation(null);
+    reset();
   };
 
   const formatCurrency = (value: number) => {
@@ -129,10 +138,10 @@ export const ObrigacoesTributarias: React.FC = () => {
     return colors[taxType] || colors['outros'];
   };
 
-  const totalObligations = taxObligations.reduce((sum, obligation) => sum + obligation.amount, 0);
-  const pendingObligations = taxObligations.filter(o => o.status === 'pendente').length;
-  const overdueObligations = taxObligations.filter(o => 
-    isAfter(new Date(), o.dueDate) && o.status !== 'pago'
+  const totalObligations = safeTaxObligations.reduce((sum, obligation) => sum + obligation.amount, 0);
+  const pendingObligations = safeTaxObligations.filter(o => o.status === 'pendente').length;
+  const overdueObligations = safeTaxObligations.filter(o => 
+    isAfter(new Date(), typeof o.dueDate === 'string' ? parseISO(o.dueDate) : o.dueDate) && o.status !== 'pago'
   ).length;
 
   return (
@@ -319,14 +328,14 @@ export const ObrigacoesTributarias: React.FC = () => {
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            {taxObligations.length === 0 ? (
+            {safeTaxObligations.length === 0 ? (
               <div className="text-center py-8 text-muted-foreground">
                 <AlertTriangle className="w-12 h-12 mx-auto mb-4 opacity-50" />
                 <p>Nenhuma obrigação tributária cadastrada.</p>
                 <p>Clique em "Nova Obrigação" para começar.</p>
               </div>
             ) : (
-              taxObligations.map((obligation) => (
+              safeTaxObligations.map((obligation) => (
                 <div key={obligation.id} className="flex items-center justify-between p-4 border rounded-lg">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-2">
@@ -363,7 +372,7 @@ export const ObrigacoesTributarias: React.FC = () => {
                     <Button
                       variant="outline"
                       size="sm"
-                      onClick={() => handleDelete(obligation.id)}
+                      onClick={() => handleDelete(obligation)}
                     >
                       <Trash2 className="w-3 h-3" />
                     </Button>
