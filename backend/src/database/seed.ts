@@ -1,11 +1,12 @@
-import sqlite3 from 'sqlite3';
-import { open } from 'sqlite';
 import { v4 as uuidv4 } from 'uuid';
+import mysql from 'mysql2/promise';
 
 async function seedDatabase() {
-  const db = await open({
-    filename: './database.sqlite',
-    driver: sqlite3.Database
+  const db = await mysql.createConnection({
+    host: 'localhost',
+    user: 'italo',
+    password: '', // Adapte se necessário
+    database: 'company',
   });
 
   try {
@@ -39,8 +40,8 @@ async function seedDatabase() {
 
     // Inserir fontes de receita padrão (sem usuário específico - será usado como template)
     for (const source of defaultIncomeSources) {
-      await db.run(
-        `INSERT OR IGNORE INTO income_sources (id, user_id, name, type, color, is_active) 
+      await db.query(
+        `INSERT IGNORE INTO income_sources (id, user_id, name, type, color, is_active) 
          VALUES (?, 'default', ?, ?, ?, 1)`,
         [uuidv4(), source.name, source.type, source.color]
       );
@@ -48,8 +49,8 @@ async function seedDatabase() {
 
     // Inserir categorias de despesa padrão (sem usuário específico - será usado como template)
     for (const category of defaultExpenseCategories) {
-      await db.run(
-        `INSERT OR IGNORE INTO expense_categories (id, user_id, name, type, color, icon, is_default) 
+      await db.query(
+        `INSERT IGNORE INTO expense_categories (id, user_id, name, type, color, icon, is_default) 
          VALUES (?, 'default', ?, ?, ?, ?, 1)`,
         [uuidv4(), category.name, category.type, category.color, category.icon]
       );
@@ -62,7 +63,7 @@ async function seedDatabase() {
   } catch (error) {
     console.error('❌ Erro ao popular base de dados:', error);
   } finally {
-    await db.close();
+    await db.end();
   }
 }
 
@@ -72,3 +73,4 @@ if (require.main === module) {
 }
 
 export { seedDatabase };
+

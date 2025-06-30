@@ -12,6 +12,18 @@
 			"group": "build",
 			"isBackground": true,
 			"problemMatcher": []
+		},
+		{
+			"label": "Executar Backend",
+			"type": "shell",
+			"command": "powershell",
+			"args": [
+				"-ExecutionPolicy", "Bypass",
+				"-File", "start-backend.ps1"
+			],
+			"group": "build",
+			"isBackground": true,
+			"problemMatcher": []
 		}
 	]
 }

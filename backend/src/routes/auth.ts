@@ -1,138 +1,30 @@
-import { Router, Request, Response } from 'express';
+import express from 'express';
 import bcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 import { v4 as uuidv4 } from 'uuid';
-import { Database } from 'sqlite';
-import { createError } from '../middleware/errorHandler';
-import { authenticateToken } from '../middleware/auth';
+import { logger } from '../utils/logger';
 
-const router = Router();
+const router = express.Router();
 
-interface AuthRequest extends Request {
-  db?: Database;
-  userId?: string;
-  body: any;
-}
-
+// Interface para o usuário
 interface User {
   id: string;
   name: string;
   email: string;
-  password_hash: string;
-  company_name?: string;
+  password: string;
+  company_name: string;
   cnpj?: string;
   business_type?: string;
-  avatar?: string;
-  created_at: string;
 }
 
-// Função para criar fontes e categorias padrão para um novo usuário
-async function createDefaultSourcesAndCategories(userId: string) {
-  const db = global.db;
-  if (!db) throw new Error('Database not available');
-
-  try {
-    // Copiar fontes de receita padrão
-    const defaultSources = await db.all(
-      'SELECT name, type, color, account_code FROM income_sources WHERE user_id = "default"'
-    );
-    
-    for (const source of defaultSources) {
-      await db.run(
-        'INSERT INTO income_sources (id, user_id, name, type, color, account_code) VALUES (?, ?, ?, ?, ?, ?)',
-        [uuidv4(), userId, source.name, source.type, source.color, source.account_code]
-      );
-    }
-
-    // Copiar categorias de despesa padrão
-    const defaultCategories = await db.all(
-      'SELECT name, color, account_code FROM expense_categories WHERE user_id = "default"'
-    );
-    
-    for (const category of defaultCategories) {
-      await db.run(
-        'INSERT INTO expense_categories (id, user_id, name, color, account_code) VALUES (?, ?, ?, ?, ?)',
-        [uuidv4(), userId, category.name, category.color, category.account_code]
-      );
-    }
-  } catch (error) {
-    console.error('Erro ao criar dados padrão:', error);
-    throw error;
-  }
+// Middleware para acessar o banco de dados
+declare global {
+  var db: any;
 }
-
-// Registro
-router.post('/register', async (req: AuthRequest, res: Response): Promise<void> => {
-  try {
-    const db = global.db;
-    if (!db) {
-      res.status(500).json({ error: 'Database not available' });
-      return;
-    }
-
-    const { name, email, password, companyName, cnpj, businessType } = req.body;
-
-    // Validações básicas
-    if (!name || !email || !password) {
-      res.status(400).json({ error: 'Nome, email e senha são obrigatórios' });
-      return;
-    }
-
-    // Verificar se o usuário já existe
-    const existingUser = await db.get('SELECT id FROM users WHERE email = ?', [email]);
-    if (existingUser) {
-      res.status(409).json({ error: 'Usuário já existe com este email' });
-      return;
-    }
-
-    // Hash da senha
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
-    // Criar usuário
-    const userId = uuidv4();
-    await db.run(
-      'INSERT INTO users (id, name, email, password_hash, company_name, cnpj, business_type, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
-      [userId, name, email, hashedPassword, companyName, cnpj, businessType, new Date().toISOString()]
-    );
-
-    // Criar fontes e categorias padrão
-    await createDefaultSourcesAndCategories(userId);
-
-    // Gerar token JWT
-    const token = jwt.sign(
-      { userId, email },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '7d' }
-    );
-
-    // Buscar o usuário criado
-    const user = await db.get(
-      'SELECT id, name, email, company_name as companyName, cnpj, business_type as businessType FROM users WHERE id = ?',
-      [userId]
-    );
-
-    res.status(201).json({
-      message: 'Usuário registrado com sucesso',
-      user,
-      token
-    });
-
-  } catch (error) {
-    console.error('Erro no registro:', error);
-    res.status(500).json({ error: 'Erro interno do servidor' });
-  }
-});
 
 // Login
-router.post('/login', async (req: AuthRequest, res: Response): Promise<void> => {
+router.post('/login', async (req, res) => {
   try {
-    const db = global.db;
-    if (!db) {
-      res.status(500).json({ error: 'Database not available' });
-      return;
-    }
-
     const { email, password } = req.body;
 
     if (!email || !password) {
@@ -140,73 +32,132 @@ router.post('/login', async (req: AuthRequest, res: Response): Promise<void> => 
       return;
     }
 
-    // Buscar usuário
-    const user = await db.get('SELECT * FROM users WHERE email = ?', [email]) as User;
+    const [users] = await global.db.query('SELECT * FROM users WHERE email = ?', [email]);
+    const user = users[0];
+
     if (!user) {
       res.status(401).json({ error: 'Credenciais inválidas' });
       return;
     }
 
-    // Verificar senha
-    const isValidPassword = await bcrypt.compare(password, user.password_hash);
-    if (!isValidPassword) {
+    if (!user.password) {
+      logger.error(`Usuário ${email} tem senha null/undefined no banco`);
+      res.status(500).json({ error: 'Erro interno do servidor' });
+      return;
+    }
+
+    const passwordMatch = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatch) {
       res.status(401).json({ error: 'Credenciais inválidas' });
       return;
     }
 
-    // Gerar token JWT
     const token = jwt.sign(
-      { userId: user.id, email: user.email },
-      process.env.JWT_SECRET || 'fallback-secret',
-      { expiresIn: '7d' }
+      { 
+        userId: user.id,
+        email: user.email 
+      },
+      process.env.JWT_SECRET || 'default-secret-key',
+      { expiresIn: '24h' }
     );
 
-    // Retornar dados do usuário (sem senha)
-    const userResponse = {
-      id: user.id,
-      name: user.name,
-      email: user.email,
-      companyName: user.company_name,
-      cnpj: user.cnpj,
-      businessType: user.business_type
-    };
+    const { password: _, ...userWithoutPassword } = user;
 
     res.json({
-      message: 'Login realizado com sucesso',
-      user: userResponse,
-      token
+      token,
+      user: userWithoutPassword
     });
-
+    logger.info(`Login bem-sucedido para: ${email}`);
+    return;
   } catch (error) {
-    console.error('Erro no login:', error);
+    logger.error('Erro no login:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+    return;
   }
 });
 
-// Obter dados do usuário atual
-router.get('/me', authenticateToken, async (req: AuthRequest, res: Response): Promise<void> => {
+// Registro
+router.post('/register', async (req, res) => {
   try {
-    const db = global.db;
-    if (!db) {
-      res.status(500).json({ error: 'Database not available' });
+    const { name, email, password, companyName, cnpj, businessType } = req.body;
+
+    if (!name || !email || !password || !companyName) {
+      res.status(400).json({ 
+        error: 'Nome, email, senha e nome da empresa são obrigatórios' 
+      });
       return;
     }
 
-    const user = await db.get(
-      'SELECT id, name, email, company_name as companyName, cnpj, business_type as businessType FROM users WHERE id = ?',
-      [req.userId]
+    const [existing] = await global.db.query('SELECT id FROM users WHERE email = ?', [email]);
+
+    if (existing.length > 0) {
+      res.status(409).json({ error: 'Usuário já existe com este email' });
+      return;
+    }
+
+    const saltRounds = 10;
+    const hashedPassword = await bcrypt.hash(password, saltRounds);
+
+    const userId = uuidv4();
+    
+    await global.db.query(
+      'INSERT INTO users (id, name, email, password, company_name, cnpj, business_type) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [userId, name, email, hashedPassword, companyName, cnpj || null, businessType || null]
     );
 
-    if (!user) {
-      res.status(404).json({ error: 'Usuário não encontrado' });
-      return;
+    const defaultIncomeSources = [
+      { name: 'Honorários Contábeis', description: 'Receitas de serviços contábeis regulares', color: '#3B82F6' },
+      { name: 'Consultoria Tributária', description: 'Receitas de consultoria em tributos', color: '#10B981' },
+      { name: 'Serviços Diversos', description: 'Outras receitas de serviços', color: '#F59E0B' }
+    ];
+
+    for (const source of defaultIncomeSources) {
+      await global.db.query(
+        'INSERT INTO income_sources (id, user_id, name, description, color, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+        [uuidv4(), userId, source.name, source.description, source.color, 1]
+      );
     }
 
-    res.json({ user });
+    const defaultExpenseCategories = [
+      { name: 'Aluguel', description: 'Aluguel do escritório', color: '#DC2626' },
+      { name: 'Funcionários', description: 'Salários e encargos', color: '#7C3AED' },
+      { name: 'Despesas Operacionais', description: 'Outras despesas operacionais', color: '#059669' }
+    ];
 
+    for (const category of defaultExpenseCategories) {
+      await global.db.query(
+        'INSERT INTO expense_categories (id, user_id, name, description, color, is_active) VALUES (?, ?, ?, ?, ?, ?)',
+        [uuidv4(), userId, category.name, category.description, category.color, 1]
+      );
+    }
+
+    const token = jwt.sign(
+      { 
+        userId: userId,
+        email: email 
+      },
+      process.env.JWT_SECRET || 'default-secret-key',
+      { expiresIn: '24h' }
+    );
+
+    res.status(201).json({
+      token,
+      user: {
+        id: userId,
+        name,
+        email,
+        company_name: companyName,
+        cnpj,
+        business_type: businessType
+      }
+    });
+    logger.info(`Usuário registrado com sucesso: ${email}`);
+    return;
   } catch (error) {
-    console.error('Erro ao buscar usuário:', error);
+    logger.error('Erro no registro:', error);
     res.status(500).json({ error: 'Erro interno do servidor' });
+    return;
   }
 });
 

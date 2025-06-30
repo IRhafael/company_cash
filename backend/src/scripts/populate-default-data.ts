@@ -1,24 +1,20 @@
-import sqlite3 from 'sqlite3';
-import { open, Database } from 'sqlite';
 import { v4 as uuidv4 } from 'uuid';
-import path from 'path';
+import mysql from 'mysql2/promise';
 
 async function populateDefaultData(): Promise<void> {
-  const dbPath = path.join(__dirname, '../../database.sqlite');
-  
-  console.log('Conectando ao banco de dados:', dbPath);
-  
-  const db: Database = await open({
-    filename: dbPath,
-    driver: sqlite3.Database
+  const db = await mysql.createConnection({
+    host: 'localhost',
+    user: 'italo',
+    password: '', // Adapte se necessário
+    database: 'company',
   });
 
   try {
     console.log('Populando dados padrão...');
 
     // Limpar dados padrão existentes
-    await db.run('DELETE FROM income_sources WHERE user_id = "default"');
-    await db.run('DELETE FROM expense_categories WHERE user_id = "default"');
+    await db.query('DELETE FROM income_sources WHERE user_id = "default"');
+    await db.query('DELETE FROM expense_categories WHERE user_id = "default"');
 
     // Fontes de receita padrão para empresas de contabilidade
     const incomeSources = [
@@ -48,7 +44,7 @@ async function populateDefaultData(): Promise<void> {
 
     // Inserir fontes de receita
     for (const source of incomeSources) {
-      await db.run(
+      await db.query(
         'INSERT INTO income_sources (id, user_id, name, type, color, account_code) VALUES (?, ?, ?, ?, ?, ?)',
         [uuidv4(), 'default', source.name, source.type, source.color, source.account_code]
       );
@@ -56,7 +52,7 @@ async function populateDefaultData(): Promise<void> {
 
     // Inserir categorias de despesa
     for (const category of expenseCategories) {
-      await db.run(
+      await db.query(
         'INSERT INTO expense_categories (id, user_id, name, color, account_code) VALUES (?, ?, ?, ?, ?)',
         [uuidv4(), 'default', category.name, category.color, category.account_code]
       );
@@ -69,7 +65,7 @@ async function populateDefaultData(): Promise<void> {
   } catch (error) {
     console.error('❌ Erro ao popular dados padrão:', error);
   } finally {
-    await db.close();
+    await db.end();
   }
 }
 

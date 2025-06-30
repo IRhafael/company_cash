@@ -1,129 +1,120 @@
-import sqlite3 from 'sqlite3';
-import { Database, open } from 'sqlite';
-import path from 'path';
+import mysql from 'mysql2/promise';
+import { logger } from '../utils/logger';
 
-export async function initializeDatabase(): Promise<Database> {
-  const dbPath = process.env.DATABASE_PATH || path.join(__dirname, '../../database.sqlite');
-  
-  const db = await open({
-    filename: dbPath,
-    driver: sqlite3.Database
+export async function initializeDatabase() {
+  const db = await mysql.createConnection({
+    host: 'localhost',
+    user: 'italo',
+    password: '1234',
+    database: 'company'
   });
 
-  // Criar tabelas
-  await db.exec(`
-    -- Tabela de usuários
+  // Criação das tabelas principais
+  await db.execute(`
     CREATE TABLE IF NOT EXISTS users (
-      id TEXT PRIMARY KEY,
-      name TEXT NOT NULL,
-      email TEXT UNIQUE NOT NULL,
-      password_hash TEXT NOT NULL,
-      company_name TEXT,
-      cnpj TEXT,
-      business_type TEXT,
-      avatar TEXT,
-      created_at TEXT NOT NULL
-    );
-
-    -- Tabela de fontes de receita
-    CREATE TABLE IF NOT EXISTS income_sources (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      type TEXT NOT NULL,
-      color TEXT NOT NULL,
-      account_code TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id)
-    );
-
-    -- Tabela de categorias de despesa
-    CREATE TABLE IF NOT EXISTS expense_categories (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      name TEXT NOT NULL,
-      color TEXT NOT NULL,
-      account_code TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id)
-    );
-
-    -- Tabela de receitas
-    CREATE TABLE IF NOT EXISTS incomes (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      description TEXT NOT NULL,
-      amount REAL NOT NULL,
-      date TEXT NOT NULL,
-      source_id TEXT NOT NULL,
-      type TEXT NOT NULL,
-      status TEXT NOT NULL,
-      project_name TEXT,
-      campaign_name TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id),
-      FOREIGN KEY (source_id) REFERENCES income_sources (id)
-    );
-
-    -- Tabela de despesas
-    CREATE TABLE IF NOT EXISTS expenses (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      description TEXT NOT NULL,
-      amount REAL NOT NULL,
-      date TEXT NOT NULL,
-      category_id TEXT NOT NULL,
-      type TEXT NOT NULL,
-      payment_status TEXT NOT NULL,
-      project_name TEXT,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id),
-      FOREIGN KEY (category_id) REFERENCES expense_categories (id)
-    );
-
-    -- Tabela de obrigações fiscais
-    CREATE TABLE IF NOT EXISTS tax_obligations (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      title TEXT NOT NULL,
-      description TEXT,
-      due_date TEXT NOT NULL,
-      amount REAL,
-      status TEXT NOT NULL,
-      priority TEXT NOT NULL,
-      category TEXT NOT NULL,
-      created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-      FOREIGN KEY (user_id) REFERENCES users (id)
-    );
+      id VARCHAR(64) PRIMARY KEY,
+      name VARCHAR(255) NOT NULL,
+      email VARCHAR(255) UNIQUE NOT NULL,
+      password VARCHAR(255) NOT NULL,
+      company_name VARCHAR(255) NOT NULL,
+      cnpj VARCHAR(32),
+      business_type VARCHAR(255),
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+    )
   `);
 
-  // Verificar se as colunas existem e adicionar se necessário
-  const userColumns = await db.all("PRAGMA table_info(users)");
-  const hasBusinessType = userColumns.some(col => col.name === 'business_type');
-  const hasCompanyName = userColumns.some(col => col.name === 'company_name');
-  const hasCnpj = userColumns.some(col => col.name === 'cnpj');
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS income_sources (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      color VARCHAR(16) DEFAULT '#3B82F6',
+      is_active TINYINT(1) DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
 
-  if (!hasBusinessType) {
-    await db.exec("ALTER TABLE users ADD COLUMN business_type TEXT");
-  }
-  if (!hasCompanyName) {
-    await db.exec("ALTER TABLE users ADD COLUMN company_name TEXT");
-  }
-  if (!hasCnpj) {
-    await db.exec("ALTER TABLE users ADD COLUMN cnpj TEXT");
-  }
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS expense_categories (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      color VARCHAR(16) DEFAULT '#EF4444',
+      is_active TINYINT(1) DEFAULT 1,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
 
-  // Verificar e adicionar colunas em incomes se necessário
-  const incomeColumns = await db.all("PRAGMA table_info(incomes)");
-  const hasProjectName = incomeColumns.some(col => col.name === 'project_name');
-  const hasCampaignName = incomeColumns.some(col => col.name === 'campaign_name');
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS incomes (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      source_id VARCHAR(64) NOT NULL,
+      description TEXT NOT NULL,
+      amount DECIMAL(15,2) NOT NULL,
+      date DATE NOT NULL,
+      type ENUM('recorrente', 'unico') DEFAULT 'unico',
+      status ENUM('confirmado', 'pendente', 'cancelado') DEFAULT 'confirmado',
+      payment_method VARCHAR(255),
+      client_name VARCHAR(255),
+      invoice_number VARCHAR(255),
+      project_name VARCHAR(255),
+      campaign_name VARCHAR(255),
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (source_id) REFERENCES income_sources(id) ON DELETE CASCADE
+    )
+  `);
 
-  if (!hasProjectName) {
-    await db.exec("ALTER TABLE incomes ADD COLUMN project_name TEXT");
-  }
-  if (!hasCampaignName) {
-    await db.exec("ALTER TABLE incomes ADD COLUMN campaign_name TEXT");
-  }
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS expenses (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      category_id VARCHAR(64) NOT NULL,
+      description TEXT NOT NULL,
+      amount DECIMAL(15,2) NOT NULL,
+      date DATE NOT NULL,
+      type ENUM('fixa', 'variavel', 'investimento') DEFAULT 'variavel',
+      status ENUM('pago', 'pendente', 'vencido') DEFAULT 'pendente',
+      payment_method VARCHAR(255),
+      supplier VARCHAR(255),
+      invoice_number VARCHAR(255),
+      due_date DATE,
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      FOREIGN KEY (category_id) REFERENCES expense_categories(id) ON DELETE CASCADE
+    )
+  `);
 
+  await db.execute(`
+    CREATE TABLE IF NOT EXISTS tax_obligations (
+      id VARCHAR(64) PRIMARY KEY,
+      user_id VARCHAR(64) NOT NULL,
+      name VARCHAR(255) NOT NULL,
+      description TEXT,
+      type VARCHAR(255) NOT NULL,
+      due_date DATE NOT NULL,
+      amount DECIMAL(15,2),
+      status ENUM('pendente', 'pago', 'vencido') DEFAULT 'pendente',
+      frequency ENUM('mensal', 'bimestral', 'trimestral', 'semestral', 'anual') DEFAULT 'mensal',
+      notes TEXT,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  logger.info('Tabelas MySQL criadas com sucesso');
   return db;
 }
