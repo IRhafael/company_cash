@@ -16,12 +16,17 @@ import { Plus, Edit, Trash2, Calendar, DollarSign, AlertTriangle, CheckCircle2 }
 import { format, isAfter, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
+// Atualizar o schema para corresponder aos campos necessários
 const taxObligationSchema = z.object({
-  description: z.string().min(1, 'Descrição é obrigatória'),
+  title: z.string().min(1, 'Título é obrigatório'),
+  description: z.string().optional(),
   amount: z.number().min(0.01, 'Valor deve ser maior que zero'),
   dueDate: z.string().min(1, 'Data de vencimento é obrigatória'),
-  taxType: z.enum(['IRPJ', 'CSLL', 'PIS', 'COFINS', 'ICMS', 'ISS', 'INSS', 'FGTS', 'outros']),
   status: z.enum(['pago', 'pendente', 'vencido']).default('pendente'),
+  // Removido o .min() do enum pois não é necessário
+  priority: z.enum(['baixa', 'media', 'alta']),
+  category: z.string().min(1, 'Categoria é obrigatória'),
+  taxType: z.enum(['IRPJ', 'CSLL', 'PIS', 'COFINS', 'ICMS', 'ISS', 'INSS', 'FGTS', 'outros']),
   referenceMonth: z.string().min(1, 'Mês de referência é obrigatório'),
   notes: z.string().optional(),
   complianceDate: z.string().optional(),
@@ -46,29 +51,58 @@ export const ObrigacoesTributarias: React.FC = () => {
   });
 
   const onSubmit = async (data: TaxObligationFormData) => {
+    console.log('🎯 Iniciando submit do formulário');
+    
     try {
-      const obligationData = {
-        description: data.description,
-        amount: Number(data.amount),
+      // Validar se todos os campos obrigatórios estão preenchidos
+      const camposObrigatorios = {
+        title: data.title,
         dueDate: data.dueDate,
-        taxType: data.taxType,
+        amount: data.amount,
         status: data.status,
-        referenceMonth: data.referenceMonth,
-        notes: data.notes,
-        complianceDate: data.complianceDate,
+        priority: data.priority,
+        category: data.taxType
       };
 
-      if (editingObligation) {
-        await updateTaxObligation(editingObligation.id, obligationData);
-      } else {
-        await createTaxObligation(obligationData);
+      console.log('📋 Campos preenchidos:', camposObrigatorios);
+
+      const camposFaltando = Object.entries(camposObrigatorios)
+        .filter(([_, value]) => !value)
+        .map(([key]) => key);
+
+      if (camposFaltando.length > 0) {
+        console.error('❌ Campos obrigatórios faltando:', camposFaltando);
+        throw new Error(`Campos obrigatórios faltando: ${camposFaltando.join(', ')}`);
       }
 
+      // Criar objeto com os dados transformados
+      const taxObligation = {
+        title: String(data.title).trim(),
+        description: data.description ? String(data.description).trim() : undefined,
+        dueDate: data.dueDate,
+        amount: Number(data.amount),
+        status: data.status as 'pendente' | 'pago' | 'atrasado',
+        priority: data.priority as 'baixa' | 'media' | 'alta',
+        category: data.taxType,
+        taxType: data.taxType,
+        referenceMonth: String(data.referenceMonth || '').trim(),
+        notes: data.notes ? String(data.notes).trim() : undefined,
+        complianceDate: data.complianceDate
+      };
+
+      console.log('📤 Dados processados:', taxObligation);
+
+      // Chamar a API
+      await createTaxObligation(taxObligation);
+      console.log('✅ Obrigação tributária criada com sucesso');
+
+      // Limpar formulário e fechar modal
       reset();
       setEditingObligation(null);
       setIsDialogOpen(false);
     } catch (error) {
-      console.error('Erro ao salvar obrigação tributária:', error);
+      console.error('❌ Erro ao salvar obrigação tributária:', error);
+      alert(error instanceof Error ? error.message : 'Erro ao salvar obrigação tributária');
     }
   };
 
@@ -169,7 +203,40 @@ export const ObrigacoesTributarias: React.FC = () => {
               </DialogDescription>
             </DialogHeader>
             
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            <form 
+              onSubmit={handleSubmit((data) => {
+                console.log('📝 Form submitted:', data);
+                onSubmit(data);
+              })} 
+              className="space-y-4"
+            >
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="title">Título</Label>
+                  <Input
+                    id="title"
+                    {...register('title')}
+                    placeholder="Ex: IRPJ - 1º Trimestre"
+                  />
+                  {errors.title && <p className="text-sm text-destructive">{errors.title.message}</p>}
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="priority">Prioridade</Label>
+                  <Select onValueChange={(value) => setValue('priority', value as any)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione a prioridade" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="baixa">Baixa</SelectItem>
+                      <SelectItem value="media">Média</SelectItem>
+                      <SelectItem value="alta">Alta</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  {errors.priority && <p className="text-sm text-destructive">{errors.priority.message}</p>}
+                </div>
+              </div>
+              
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-2">
                   <Label htmlFor="description">Descrição</Label>

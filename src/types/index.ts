@@ -65,15 +65,21 @@ export interface Expense {
 }
 
 export interface TaxObligation {
-  id: string;
-  description: string;
+  id?: string;
+  title: string;
+  description?: string;
   amount: number;
-  dueDate: Date;
+  dueDate: string | Date;
+  status: 'pendente' | 'pago' | 'vencido';
+  priority: 'baixa' | 'media' | 'alta';
+  category: string;
   taxType: 'IRPJ' | 'CSLL' | 'PIS' | 'COFINS' | 'ICMS' | 'ISS' | 'INSS' | 'FGTS' | 'outros';
-  status: 'pago' | 'pendente' | 'vencido';
-  referenceMonth: string; // MM/YYYY
+  referenceMonth: string;
   notes?: string;
-  complianceDate?: Date;
+  complianceDate?: string | Date;
+  user_id?: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface FinancialSummary {

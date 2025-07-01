@@ -276,22 +276,26 @@ export const taxObligationAPI = {
     status: 'pendente' | 'pago' | 'atrasado';
     priority: 'baixa' | 'media' | 'alta';
     category: string;
+    taxType: string;
+    referenceMonth: string;
+    notes?: string;
+    complianceDate?: string;
   }): Promise<TaxObligation> {
-    console.log('⭐ Iniciando criação de obrigação tributária:', {
-      dados: taxObligation,
-      campos: Object.keys(taxObligation),
-      valores: Object.values(taxObligation)
-    });
+    console.log('🚀 Iniciando criação de obrigação tributária:', taxObligation);
 
     // Validação dos campos obrigatórios
     const camposObrigatorios = ['title', 'dueDate', 'status', 'priority', 'category'];
     const camposFaltando = camposObrigatorios.filter(campo => !taxObligation[campo]);
     
     if (camposFaltando.length > 0) {
-      console.warn('⚠️ Campos obrigatórios faltando:', camposFaltando);
+      const erro = `Campos obrigatórios faltando: ${camposFaltando.join(', ')}`;
+      console.error('❌ Erro de validação:', erro);
+      throw new Error(erro);
     }
 
     try {
+      console.log('📡 Enviando requisição para a API...');
+      
       const response = await apiRequest<TaxObligation>('/tax-obligations', {
         method: 'POST',
         body: JSON.stringify(taxObligation),
@@ -300,10 +304,9 @@ export const taxObligationAPI = {
       console.log('✅ Obrigação tributária criada com sucesso:', response);
       return response;
     } catch (error) {
-      console.error('❌ Erro ao criar obrigação tributária:', {
+      console.error('💥 Erro ao criar obrigação tributária:', {
         erro: error instanceof Error ? error.message : String(error),
-        dados: taxObligation,
-        camposFaltando
+        dados: taxObligation
       });
       throw error;
     }
