@@ -1,1 +1,10 @@
 node_modules
+/node_modules
+/node_modules
+/.vscode
+/node_modules
+/node_modules/.pnpm
+/node_modules/.pnpm/@babel+helper-compilation-targets@7.27.0
+/node_modules/.pnpm/@babel+helper-compilation-targets@7.27.0/node_modules
+/node_modules/.pnpm/@babel+helper-compilation-targets@7.27.0/node_modules/@babel
+/node_modules/.pnpm/@babel+helper-compilation-targets@7.27.0/node_modules/@babel/helper-compilation-targets/node_modules/.bin
