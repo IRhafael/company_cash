@@ -23,6 +23,12 @@ const expenseSchema = z.object({
   date: z.string().min(1, 'Data é obrigatória'),
   categoryId: z.string().min(1, 'Categoria é obrigatória'),
   type: z.enum(['pessoal', 'profissional', 'deductible', 'non_deductible']),
+  status: z.enum(['pago', 'pendente', 'vencido']).default('pendente'),
+  paymentMethod: z.string().optional(),
+  supplier: z.string().optional(),
+  invoiceNumber: z.string().optional(),
+  dueDate: z.string().optional(),
+  notes: z.string().optional(),
   isRecurring: z.boolean().default(false),
   projectName: z.string().optional(),
   tags: z.string().optional(),
@@ -45,6 +51,7 @@ export const Despesas: React.FC = () => {
     resolver: zodResolver(expenseSchema),
     defaultValues: {
       type: 'profissional',
+      status: 'pendente',
       isRecurring: false
     }
   });
@@ -53,17 +60,29 @@ export const Despesas: React.FC = () => {
 
   const onSubmit = async (data: ExpenseFormData) => {
     try {
+      // Mapear tipos do frontend para o backend
+      const typeMapping = {
+        'pessoal': 'variavel',
+        'profissional': 'fixa',
+        'deductible': 'variavel',
+        'non_deductible': 'variavel'
+      };
+
       const expenseData = {
         description: data.description,
         amount: data.amount,
         date: data.date,
         categoryId: data.categoryId,
-        type: data.type,
-        isRecurring: data.isRecurring,
-        projectName: data.projectName,
-        tags: data.tags ? data.tags.split(',').map(tag => tag.trim()) : undefined,
-        receiptUrl: data.receiptUrl,
+        type: typeMapping[data.type] || 'variavel',
+        status: data.status || 'pendente',
+        paymentMethod: data.paymentMethod,
+        supplier: data.supplier,
+        invoiceNumber: data.invoiceNumber,
+        dueDate: data.dueDate,
+        notes: data.notes || (data.tags ? `Tags: ${data.tags}${data.projectName ? `, Projeto: ${data.projectName}` : ''}${data.receiptUrl ? `, Comprovante: ${data.receiptUrl}` : ''}` : ''),
       };
+
+      console.log('📤 Enviando dados de despesa:', expenseData);
 
       if (editingExpense) {
         await updateExpense(editingExpense.id, expenseData);
@@ -75,7 +94,7 @@ export const Despesas: React.FC = () => {
       setEditingExpense(null);
       reset();
     } catch (error) {
-      console.error('Erro ao salvar despesa:', error);
+      console.error('❌ Erro ao salvar despesa:', error);
     }
   };
 
@@ -85,8 +104,21 @@ export const Despesas: React.FC = () => {
     setValue('amount', expense.amount);
     setValue('date', typeof expense.date === 'string' ? expense.date : expense.date.toISOString().split('T')[0]);
     setValue('categoryId', expense.categoryId);
-    setValue('type', expense.type);
-    setValue('isRecurring', expense.isRecurring);
+    
+    // Mapear tipos do backend para o frontend
+    const typeMapping = {
+      'fixa': 'profissional',
+      'variavel': 'pessoal',
+      'investimento': 'profissional'
+    };
+    setValue('type', typeMapping[expense.type] || 'profissional');
+    setValue('status', expense.status || 'pendente');
+    setValue('paymentMethod', expense.paymentMethod || '');
+    setValue('supplier', expense.supplier || '');
+    setValue('invoiceNumber', expense.invoiceNumber || '');
+    setValue('dueDate', expense.dueDate ? (typeof expense.dueDate === 'string' ? expense.dueDate : expense.dueDate.toISOString().split('T')[0]) : '');
+    setValue('notes', expense.notes || '');
+    setValue('isRecurring', expense.isRecurring || false);
     setValue('projectName', expense.projectName || '');
     setValue('tags', expense.tags?.join(', ') || '');
     setValue('receiptUrl', expense.receiptUrl || '');
@@ -266,22 +298,70 @@ export const Despesas: React.FC = () => {
                 )}
 
                 <div className="space-y-2">
-                  <Label htmlFor="tags">Tags (opcional)</Label>
-                  <Input
-                    id="tags"
-                    placeholder="Ex: equipamento, software, marketing"
-                    {...register('tags')}
+                  <Label htmlFor="notes">Observações (opcional)</Label>
+                  <Textarea
+                    id="notes"
+                    placeholder="Observações adicionais sobre a despesa"
+                    {...register('notes')}
                   />
-                  <p className="text-xs text-gray-500">Separe as tags por vírgula</p>
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="receiptUrl">Link do Comprovante (opcional)</Label>
+                    <Label>Status</Label>
+                    <Select onValueChange={(value) => setValue('status', value as 'pago' | 'pendente' | 'vencido')}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o status" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="pendente">Pendente</SelectItem>
+                        <SelectItem value="pago">Pago</SelectItem>
+                        <SelectItem value="vencido">Vencido</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="paymentMethod">Método de Pagamento (opcional)</Label>
+                    <Select onValueChange={(value) => setValue('paymentMethod', value)}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Selecione o método" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="PIX">PIX</SelectItem>
+                        <SelectItem value="Cartão">Cartão</SelectItem>
+                        <SelectItem value="Transferência">Transferência</SelectItem>
+                        <SelectItem value="Boleto">Boleto</SelectItem>
+                        <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="supplier">Fornecedor (opcional)</Label>
+                    <Input
+                      id="supplier"
+                      placeholder="Ex: Empresa ABC"
+                      {...register('supplier')}
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="invoiceNumber">Número da Nota (opcional)</Label>
+                    <Input
+                      id="invoiceNumber"
+                      placeholder="Ex: NF-001"
+                      {...register('invoiceNumber')}
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="dueDate">Data de Vencimento (opcional)</Label>
                   <Input
-                    id="receiptUrl"
-                    type="url"
-                    placeholder="https://..."
-                    {...register('receiptUrl')}
+                    id="dueDate"
+                    type="date"
+                    {...register('dueDate')}
                   />
                 </div>
 

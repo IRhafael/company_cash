@@ -251,14 +251,19 @@ export const expenseAPI = {
     amount: number;
     date: string;
     categoryId: string;
-    type: 'fixo' | 'variavel' | 'eventual';
-    paymentStatus: 'pago' | 'pendente' | 'vencido';
-    projectName?: string;
+    type?: string;
+    status?: string;
+    paymentMethod?: string;
+    supplier?: string;
+    invoiceNumber?: string;
+    dueDate?: string;
+    notes?: string;
   }): Promise<Expense> {
-    return apiRequest<Expense>('/expenses', {
+    const response = await apiRequest<{data: any}>('/expenses', {
       method: 'POST',
       body: JSON.stringify(expense),
     });
+    return response.data;
   },
 
   async update(id: string, expense: Partial<Expense>): Promise<Expense> {

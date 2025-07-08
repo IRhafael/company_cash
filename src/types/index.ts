@@ -54,13 +54,16 @@ export interface Expense {
   categoryId: string;
   category: ExpenseCategory;
   type: 'pessoal' | 'profissional' | 'deductible' | 'non_deductible'; // Tipo para compatibilidade
+  status: 'pago' | 'pendente' | 'vencido';
+  paymentMethod?: string;
+  supplier?: string;
+  invoiceNumber?: string;
+  dueDate?: Date | string;
+  notes?: string;
   isRecurring: boolean;
   tags?: string[];
   receiptUrl?: string;
   supplierName?: string;
-  invoiceNumber?: string;
-  dueDate?: Date;
-  paymentStatus: 'pago' | 'pendente' | 'vencido';
   projectName?: string; // Nome do projeto
 }
 

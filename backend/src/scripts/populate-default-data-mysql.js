@@ -1,20 +1,26 @@
-import { v4 as uuidv4 } from 'uuid';
-import mysql from 'mysql2/promise';
+const mysql = require('mysql2/promise');
+const { v4: uuidv4 } = require('uuid');
 
-async function populateDefaultData(): Promise<void> {
+async function populateDefaultData() {
   const db = await mysql.createConnection({
     host: 'localhost',
     user: 'italo',
-    password: '1234', // Senha correta
-    database: 'company',
+    password: '1234',
+    database: 'company'
   });
 
   try {
-    console.log('Populando dados padrão...');
+    console.log('Populando dados padrão no MySQL...');
 
-    // Limpar dados padrão existentes
-    await db.query('DELETE FROM income_sources WHERE user_id = "default"');
-    await db.query('DELETE FROM expense_categories WHERE user_id = "default"');
+    // Verificar se já existem dados padrão
+    const [existingIncome] = await db.execute('SELECT COUNT(*) as count FROM income_sources WHERE user_id = "default"');
+    const [existingExpenses] = await db.execute('SELECT COUNT(*) as count FROM expense_categories WHERE user_id = "default"');
+
+    if (existingIncome[0].count > 0 || existingExpenses[0].count > 0) {
+      console.log('⚠️ Dados padrão já existem. Removendo dados antigos...');
+      await db.execute('DELETE FROM income_sources WHERE user_id = "default"');
+      await db.execute('DELETE FROM expense_categories WHERE user_id = "default"');
+    }
 
     // Fontes de receita padrão para empresas de contabilidade
     const incomeSources = [
@@ -44,23 +50,23 @@ async function populateDefaultData(): Promise<void> {
 
     // Inserir fontes de receita
     for (const source of incomeSources) {
-      await db.query(
-        'INSERT INTO income_sources (id, user_id, name, type, color, account_code) VALUES (?, ?, ?, ?, ?, ?)',
-        [uuidv4(), 'default', source.name, source.type, source.color, source.account_code]
+      await db.execute(
+        'INSERT INTO income_sources (id, user_id, name, type, color, account_code, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())',
+        [uuidv4(), 'default', source.name, source.type, source.color, source.account_code, 1]
       );
     }
 
     // Inserir categorias de despesa
     for (const category of expenseCategories) {
-      await db.query(
-        'INSERT INTO expense_categories (id, user_id, name, color, account_code) VALUES (?, ?, ?, ?, ?)',
-        [uuidv4(), 'default', category.name, category.color, category.account_code]
+      await db.execute(
+        'INSERT INTO expense_categories (id, user_id, name, color, account_code, is_active, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())',
+        [uuidv4(), 'default', category.name, category.color, category.account_code, 1]
       );
     }
 
     console.log(`✅ Inseridas ${incomeSources.length} fontes de receita padrão`);
     console.log(`✅ Inseridas ${expenseCategories.length} categorias de despesa padrão`);
-    console.log('✅ Dados padrão populados com sucesso!');
+    console.log('✅ Dados padrão populados com sucesso no MySQL!');
 
   } catch (error) {
     console.error('❌ Erro ao popular dados padrão:', error);
@@ -69,4 +75,4 @@ async function populateDefaultData(): Promise<void> {
   }
 }
 
-populateDefaultData().catch(console.error);
+populateDefaultData();
