@@ -140,10 +140,11 @@ export const incomeSourceAPI = {
     is_active?: boolean;
     accountCode?: string;
   }): Promise<IncomeSource> {
-    return apiRequest<IncomeSource>('/income-sources', {
+    const response = await apiRequest<{data: any}>('/income-sources', {
       method: 'POST',
       body: JSON.stringify(source),
     });
+    return response.data;
   },
 
   async update(id: string, source: Partial<IncomeSource>): Promise<IncomeSource> {
@@ -163,7 +164,9 @@ export const incomeSourceAPI = {
 // Income API
 export const incomeAPI = {
   async getAll(): Promise<Income[]> {
-    return apiRequest<Income[]>('/incomes');
+    const response = await apiRequest<{data: any[]}>('/incomes');
+    // A API retorna {success: true, data: [...]}
+    return response.data || [];
   },
 
   async create(income: {
@@ -171,26 +174,36 @@ export const incomeAPI = {
     amount: number;
     date: string;
     sourceId: string;
-    type: 'recorrente' | 'unico';
-    status: 'confirmado' | 'pendente' | 'cancelado';
+    type?: 'recorrente' | 'unico';
+    status?: 'confirmado' | 'pendente' | 'cancelado';
     projectName?: string;
     campaignName?: string;
+    clientName?: string;
+    invoiceNumber?: string;
+    paymentMethod?: string;
+    notes?: string;
   }): Promise<Income> {
-    return apiRequest<Income>('/incomes', {
+    const response = await apiRequest<{data: any}>('/incomes', {
       method: 'POST',
-      body: JSON.stringify(income),
+      body: JSON.stringify({
+        ...income,
+        type: income.type || 'unico',
+        status: income.status || 'confirmado'
+      }),
     });
+    return response.data;
   },
 
   async update(id: string, income: Partial<Income>): Promise<Income> {
-    return apiRequest<Income>(`/incomes/${id}`, {
+    const response = await apiRequest<{data: any}>(`/incomes/${id}`, {
       method: 'PUT',
       body: JSON.stringify(income),
     });
+    return response.data;
   },
 
   async delete(id: string): Promise<void> {
-    return apiRequest<void>(`/incomes/${id}`, {
+    await apiRequest<void>(`/incomes/${id}`, {
       method: 'DELETE',
     });
   },

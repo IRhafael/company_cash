@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useFinancialCalculations } from '@/hooks/useFinancialCalculations';
 import { useAppContext } from '@/contexts/AppContext';
+import { TestIncomes } from '@/components/TestIncomes';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -127,6 +128,9 @@ export const Dashboard: React.FC = () => {
   return (
     <div className="p-6 sm:p-8 space-y-8">
       <div className="max-w-7xl mx-auto">
+        {/* Componente de Teste - REMOVER DEPOIS */}
+        <TestIncomes />
+        
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8">
           <div>
