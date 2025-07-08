@@ -164,7 +164,7 @@ export const incomeSourceAPI = {
 // Income API
 export const incomeAPI = {
   async getAll(): Promise<Income[]> {
-    const response = await apiRequest<{data: any[]}>('/incomes');
+    const response = await apiRequest<{data: Income[], total?: number}>('/incomes');
     // A API retorna {success: true, data: [...]}
     return response.data || [];
   },

@@ -12,6 +12,7 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
   try {
     const userId = req.userId;
     const { startDate, endDate, sourceId, limit = 50, offset = 0 } = req.query;
+    
     let query = `
       SELECT i.*, s.name as source_name, s.type as source_type, s.color as source_color
       FROM incomes i

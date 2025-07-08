@@ -3,6 +3,7 @@ import { useAppContext } from '@/contexts/AppContext';
 import { FinancialSummary, MonthlyData, ReportMetrics } from '@/types';
 import { format, subMonths, startOfMonth, endOfMonth, isWithinInterval } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseAmount } from '@/lib/currency';
 
 export const useFinancialCalculations = () => {
   const { state } = useAppContext();
@@ -17,14 +18,14 @@ export const useFinancialCalculations = () => {
 
     if (safeIncomes.length === 0 && safeExpenses.length === 0) return null;
 
-    const totalIncome = safeIncomes.reduce((sum, income) => sum + income.amount, 0);
-    const totalExpenses = safeExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const totalIncome = safeIncomes.reduce((sum, income) => sum + parseAmount(income.amount), 0);
+    const totalExpenses = safeExpenses.reduce((sum, expense) => sum + parseAmount(expense.amount), 0);
     const netProfit = totalIncome - totalExpenses;
     const profitMargin = totalIncome > 0 ? (netProfit / totalIncome) * 100 : 0;
 
     // Agrupar receitas por fonte
     const incomeBySource = safeIncomes.reduce((acc, income) => {
-      acc[income.sourceId] = (acc[income.sourceId] || 0) + income.amount;
+      acc[income.sourceId] = (acc[income.sourceId] || 0) + parseAmount(income.amount);
       return acc;
     }, {} as Record<string, number>);
 
@@ -34,7 +35,7 @@ export const useFinancialCalculations = () => {
 
     // Agrupar despesas por categoria
     const expenseByCategory = safeExpenses.reduce((acc, expense) => {
-      acc[expense.categoryId] = (acc[expense.categoryId] || 0) + expense.amount;
+      acc[expense.categoryId] = (acc[expense.categoryId] || 0) + parseAmount(expense.amount);
       return acc;
     }, {} as Record<string, number>);
 
@@ -74,10 +75,10 @@ export const useFinancialCalculations = () => {
       })
     );
 
-    const currentIncomeTotal = currentMonthIncomes.reduce((sum, income) => sum + income.amount, 0);
-    const lastIncomeTotal = lastMonthIncomes.reduce((sum, income) => sum + income.amount, 0);
-    const currentExpenseTotal = currentMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
-    const lastExpenseTotal = lastMonthExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+    const currentIncomeTotal = currentMonthIncomes.reduce((sum, income) => sum + parseAmount(income.amount), 0);
+    const lastIncomeTotal = lastMonthIncomes.reduce((sum, income) => sum + parseAmount(income.amount), 0);
+    const currentExpenseTotal = currentMonthExpenses.reduce((sum, expense) => sum + parseAmount(expense.amount), 0);
+    const lastExpenseTotal = lastMonthExpenses.reduce((sum, expense) => sum + parseAmount(expense.amount), 0);
 
     const incomeGrowth = lastIncomeTotal > 0 ? ((currentIncomeTotal - lastIncomeTotal) / lastIncomeTotal) * 100 : 0;
     const expenseGrowth = lastExpenseTotal > 0 ? ((currentExpenseTotal - lastExpenseTotal) / lastExpenseTotal) * 100 : 0;
@@ -141,13 +142,16 @@ export const useFinancialCalculations = () => {
     const projectExpenses = safeExpenses.filter(expense => expense.projectName);
     const projectsCount = new Set(projectExpenses.map(expense => expense.projectName)).size;
     const costPerProject = projectsCount > 0 ? 
-      projectExpenses.reduce((sum, expense) => sum + expense.amount, 0) / projectsCount : 0;
+      projectExpenses.reduce((sum, expense) => sum + parseAmount(expense.amount), 0) / projectsCount : 0;
 
     // ROI por fonte
     const roiBySource: Record<string, number> = {};
     safeIncomeSources.forEach(source => {
       const sourceIncomes = safeIncomes.filter(income => income.sourceId === source.id);
-      const sourceRevenue = sourceIncomes.reduce((sum, income) => sum + income.amount, 0);
+      const sourceRevenue = sourceIncomes.reduce((sum, income) => {
+        const amount = typeof income.amount === 'string' ? parseFloat(income.amount) : income.amount;
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
       
       // Estimar despesas relacionadas à fonte (aproximação)
       const sourceCosts = safeExpenses.filter(expense => 
@@ -155,16 +159,25 @@ export const useFinancialCalculations = () => {
           expense.categoryId.includes('marketing') || 
           expense.categoryId.includes('software')
         )
-      ).reduce((sum, expense) => sum + expense.amount, 0) / safeIncomeSources.length;
+      ).reduce((sum, expense) => {
+        const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount;
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0) / safeIncomeSources.length;
       
       roiBySource[source.name] = sourceCosts > 0 ? ((sourceRevenue - sourceCosts) / sourceCosts) * 100 : 0;
     });
 
     // Pessoal vs Profissional
     const personalExpenses = safeExpenses.filter(expense => expense.type === 'pessoal')
-      .reduce((sum, expense) => sum + expense.amount, 0);
+      .reduce((sum, expense) => {
+        const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount;
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
     const professionalExpenses = safeExpenses.filter(expense => expense.type === 'profissional')
-      .reduce((sum, expense) => sum + expense.amount, 0);
+      .reduce((sum, expense) => {
+        const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount;
+        return sum + (isNaN(amount) ? 0 : amount);
+      }, 0);
 
     // Top projetos
     const projectStats: Record<string, { revenue: number; cost: number }> = {};
@@ -174,13 +187,15 @@ export const useFinancialCalculations = () => {
         if (!projectStats[income.projectName]) {
           projectStats[income.projectName] = { revenue: 0, cost: 0 };
         }
-        projectStats[income.projectName].revenue += income.amount;
+        const amount = typeof income.amount === 'string' ? parseFloat(income.amount) : income.amount;
+        projectStats[income.projectName].revenue += (isNaN(amount) ? 0 : amount);
       }
     });
 
     safeExpenses.forEach(expense => {
       if (expense.projectName && projectStats[expense.projectName]) {
-        projectStats[expense.projectName].cost += expense.amount;
+        const amount = typeof expense.amount === 'string' ? parseFloat(expense.amount) : expense.amount;
+        projectStats[expense.projectName].cost += (isNaN(amount) ? 0 : amount);
       }
     });
 
