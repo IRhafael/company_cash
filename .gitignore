@@ -29,3 +29,4 @@ pnpm-debug.log*
 # Database
 *.sqlite
 *.db
+*.sql
