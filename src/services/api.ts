@@ -291,7 +291,7 @@ export const taxObligationAPI = {
     description?: string;
     dueDate: string;
     amount?: number;
-    status: 'pendente' | 'pago' | 'atrasado';
+    status: 'pendente' | 'pago' | 'vencido';
     priority: 'baixa' | 'media' | 'alta';
     category: string;
     taxType: string;
@@ -312,15 +312,15 @@ export const taxObligationAPI = {
     }
 
     try {
-      console.log('📡 Enviando requisição para a API...');
+      console.log('📡 Enviando dados para a API:', taxObligation);
       
-      const response = await apiRequest<TaxObligation>('/tax-obligations', {
+      const response = await apiRequest<{data: any}>('/tax-obligations', {
         method: 'POST',
         body: JSON.stringify(taxObligation),
       });
       
-      console.log('✅ Obrigação tributária criada com sucesso:', response);
-      return response;
+      console.log('✅ Obrigação tributária criada com sucesso:', response.data);
+      return response.data;
     } catch (error) {
       console.error('💥 Erro ao criar obrigação tributária:', {
         erro: error instanceof Error ? error.message : String(error),
