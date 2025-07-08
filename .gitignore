@@ -30,3 +30,6 @@ pnpm-debug.log*
 *.sqlite
 *.db
 *.sql
+backend/src/scripts/test-frontend-api.js
+.gitignore
+backend/src/scripts/test-graph-data.js
