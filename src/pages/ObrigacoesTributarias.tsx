@@ -15,6 +15,7 @@ import { TaxObligation } from '@/types';
 import { Plus, Edit, Trash2, Calendar, DollarSign, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { format, isAfter, parseISO, isValid } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseAmount } from '@/lib/currency';
 
 // Atualizar o schema para corresponder aos campos necessários
 const taxObligationSchema = z.object({
@@ -172,7 +173,7 @@ export const ObrigacoesTributarias: React.FC = () => {
     return colors[taxType] || colors['outros'];
   };
 
-  const totalObligations = safeTaxObligations.reduce((sum, obligation) => sum + obligation.amount, 0);
+  const totalObligations = safeTaxObligations.reduce((sum, obligation) => sum + parseAmount(obligation.amount), 0);
   const pendingObligations = safeTaxObligations.filter(o => o.status === 'pendente').length;
   const overdueObligations = safeTaxObligations.filter(o => 
     isAfter(new Date(), typeof o.dueDate === 'string' ? parseISO(o.dueDate) : o.dueDate) && o.status !== 'pago'

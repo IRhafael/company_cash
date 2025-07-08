@@ -16,6 +16,7 @@ import { Plus, Edit, Trash2, TrendingUp, Calendar, DollarSign } from 'lucide-rea
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import api from '@/services/api';
+import { parseAmount, formatCurrency } from '@/lib/currency';
 
 const incomeSchema = z.object({
   description: z.string().min(1, 'Descrição é obrigatória'),
@@ -117,13 +118,6 @@ export const Receitas: React.FC = () => {
     reset();
   };
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat('pt-BR', {
-      style: 'currency',
-      currency: 'BRL'
-    }).format(value);
-  };
-
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'confirmado': return 'bg-green-100 text-green-800';
@@ -142,14 +136,14 @@ export const Receitas: React.FC = () => {
     }
   };
 
-  // Calcular estatísticas
-  const totalIncome = safeIncomes.reduce((sum, income) => sum + income.amount, 0);
+  // Calcular estatísticas usando parseAmount
+  const totalIncome = safeIncomes.reduce((sum, income) => sum + parseAmount(income.amount), 0);
   const confirmedIncome = safeIncomes
     .filter(income => income.status === 'confirmado')
-    .reduce((sum, income) => sum + income.amount, 0);
+    .reduce((sum, income) => sum + parseAmount(income.amount), 0);
   const pendingIncome = safeIncomes
     .filter(income => income.status === 'pendente')
-    .reduce((sum, income) => sum + income.amount, 0);
+    .reduce((sum, income) => sum + parseAmount(income.amount), 0);
 
   return (
     <div className="p-6 sm:p-8 space-y-8">

@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { Link } from 'react-router-dom';
+import { parseAmount } from '@/lib/currency';
 
 const COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4'];
 
@@ -44,7 +45,7 @@ export const Dashboard: React.FC = () => {
   const incomeBySource = safeIncomeSources.map(source => {
     const total = safeIncomes
       .filter(income => income.sourceId === source.id)
-      .reduce((sum, income) => sum + income.amount, 0);
+      .reduce((sum, income) => sum + parseAmount(income.amount), 0);
     return {
       name: source.name,
       value: total,
@@ -56,7 +57,7 @@ export const Dashboard: React.FC = () => {
   const expenseByCategory = safeExpenseCategories.map(category => {
     const total = safeExpenses
       .filter(expense => expense.categoryId === category.id)
-      .reduce((sum, expense) => sum + expense.amount, 0);
+      .reduce((sum, expense) => sum + parseAmount(expense.amount), 0);
     return {
       name: category.name,
       value: total,
@@ -83,7 +84,7 @@ export const Dashboard: React.FC = () => {
         id: expense.id,
         type: 'expense' as const,
         description: expense.description,
-        amount: expense.amount,
+        amount: parseAmount(expense.amount),
         date: expense.date,
         category: category?.name || 'Categoria não encontrada'
       };

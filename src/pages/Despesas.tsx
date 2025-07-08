@@ -16,6 +16,7 @@ import { Expense, ExpenseCategory } from '@/types';
 import { Plus, Edit, Trash2, TrendingDown, User, Briefcase, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { parseAmount } from '@/lib/currency';
 
 const expenseSchema = z.object({
   description: z.string().min(1, 'Descrição é obrigatória'),
@@ -148,17 +149,17 @@ export const Despesas: React.FC = () => {
     }).format(value);
   };
 
-  // Calcular estatísticas
-  const totalExpenses = safeExpenses.reduce((sum, expense) => sum + expense.amount, 0);
+  // Calcular estatísticas usando parseAmount
+  const totalExpenses = safeExpenses.reduce((sum, expense) => sum + parseAmount(expense.amount), 0);
   const professionalExpenses = safeExpenses
     .filter(expense => expense.type === 'profissional')
-    .reduce((sum, expense) => sum + expense.amount, 0);
+    .reduce((sum, expense) => sum + parseAmount(expense.amount), 0);
   const personalExpenses = safeExpenses
     .filter(expense => expense.type === 'pessoal')
-    .reduce((sum, expense) => sum + expense.amount, 0);
+    .reduce((sum, expense) => sum + parseAmount(expense.amount), 0);
   const recurringExpenses = safeExpenses
     .filter(expense => expense.isRecurring)
-    .reduce((sum, expense) => sum + expense.amount, 0);
+    .reduce((sum, expense) => sum + parseAmount(expense.amount), 0);
 
   return (
     <div className="p-6 sm:p-8 space-y-8">

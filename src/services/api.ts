@@ -290,7 +290,7 @@ export const taxObligationAPI = {
     title: string;
     description?: string;
     dueDate: string;
-    amount?: number;
+    amount: number;
     status: 'pendente' | 'pago' | 'vencido';
     priority: 'baixa' | 'media' | 'alta';
     category: string;
@@ -302,7 +302,7 @@ export const taxObligationAPI = {
     console.log('🚀 Iniciando criação de obrigação tributária:', taxObligation);
 
     // Validação dos campos obrigatórios
-    const camposObrigatorios = ['title', 'dueDate', 'status', 'priority', 'category'];
+    const camposObrigatorios = ['title', 'dueDate', 'amount', 'status', 'priority', 'category'];
     const camposFaltando = camposObrigatorios.filter(campo => !taxObligation[campo]);
     
     if (camposFaltando.length > 0) {
