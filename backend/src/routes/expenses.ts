@@ -11,9 +11,10 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
   try {
     const userId = req.userId;
     const [expenses] = await db.query<RowDataPacket[]>('SELECT * FROM expenses WHERE user_id = ? ORDER BY date DESC, created_at DESC', [userId]);
-    // Padronizar campo date para string ISO yyyy-MM-dd
+    // Padronizar campo date para string ISO yyyy-MM-dd e mapear campos para camelCase
     const formattedExpenses = (expenses as any[]).map((exp) => ({
       ...exp,
+      categoryId: exp.category_id, // Mapear category_id para categoryId
       date: exp.date ? exp.date.toISOString().split('T')[0] : null,
     }));
     res.json(formattedExpenses);

@@ -102,7 +102,7 @@ export const Relatorios: React.FC = () => {
   const incomeBySource = safeIncomeSources.map(source => {
     const total = filteredIncomes
       .filter(income => income.sourceId === source.id)
-      .reduce((sum, income) => sum + income.amount, 0);
+      .reduce((sum, income) => sum + parseAmount(income.amount), 0);
     return {
       name: source.name,
       value: total,
@@ -114,7 +114,7 @@ export const Relatorios: React.FC = () => {
   const expenseByCategory = safeExpenseCategories.map(category => {
     const total = filteredExpenses
       .filter(expense => expense.categoryId === category.id)
-      .reduce((sum, expense) => sum + expense.amount, 0);
+      .reduce((sum, expense) => sum + parseAmount(expense.amount), 0);
     return {
       name: category.name,
       value: total,
@@ -141,8 +141,8 @@ export const Relatorios: React.FC = () => {
         isWithinInterval(typeof expense.date === 'string' ? new Date(expense.date) : expense.date, { start: monthStart, end: monthEnd })
       );
       
-      const income = monthIncomes.reduce((sum, inc) => sum + inc.amount, 0);
-      const expenseAmount = monthExpenses.reduce((sum, exp) => sum + exp.amount, 0);
+      const income = monthIncomes.reduce((sum, inc) => sum + parseAmount(inc.amount), 0);
+      const expenseAmount = monthExpenses.reduce((sum, exp) => sum + parseAmount(exp.amount), 0);
       
       months.push({
         month: format(date, 'MMM/yy', { locale: ptBR }),
@@ -256,7 +256,7 @@ export const Relatorios: React.FC = () => {
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-green-600">
-                {formatCurrency(filteredIncomes.reduce((sum, income) => sum + income.amount, 0))}
+                {formatCurrency(filteredIncomes.reduce((sum, income) => sum + parseAmount(income.amount), 0))}
               </div>
               <p className="text-xs text-gray-600 mt-1">
                 Período selecionado

@@ -38,9 +38,10 @@ router.get('/', authenticateToken, async (req: any, res: Response) => {
 
     const [incomes] = await db.query<RowDataPacket[]>(query, params);
 
-    // Padronizar campo date para string ISO yyyy-MM-dd
+    // Padronizar campo date para string ISO yyyy-MM-dd e mapear campos para camelCase
     const formattedIncomes = (incomes as any[]).map((inc) => ({
       ...inc,
+      sourceId: inc.source_id, // Mapear source_id para sourceId
       date: inc.date ? inc.date.toISOString().split('T')[0] : null,
     }));
 
