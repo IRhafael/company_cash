@@ -17,6 +17,7 @@ import {
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, LineChart, Line } from 'recharts';
 import { Link } from 'react-router-dom';
 import { parseAmount } from '@/lib/currency';
+import ImportarExtratoOFX from '../components/ImportarExtratoOFX';
 
 const COLORS = ['#3B82F6', '#EF4444', '#10B981', '#F59E0B', '#8B5CF6', '#06B6D4'];
 
@@ -382,6 +383,7 @@ export const Dashboard: React.FC = () => {
           </Card>
         </div>
       </div>
+      <ImportarExtratoOFX />
     </div>
   );
 };

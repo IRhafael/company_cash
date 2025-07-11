@@ -11,8 +11,10 @@ import taxObligationRoutes from './routes/taxObligations';
 import incomeSourceRoutes from './routes/incomeSources';
 import expenseCategoryRoutes from './routes/expenseCategories';
 import reportRoutes from './routes/reports';
+import importNfeXmlRouter from './routes/importNfeXml';
 import { errorHandler } from './middleware/errorHandler';
 import { logger } from './utils/logger';
+import morgan from 'morgan';
 
 dotenv.config();
 
@@ -28,6 +30,7 @@ const limiter = rateLimit({
 
 // Middleware
 app.use(helmet());
+app.use(morgan('dev'));
 
 const allowedOrigins = [
   'http://localhost:5173',
@@ -65,6 +68,7 @@ app.use('/api/tax-obligations', taxObligationRoutes);
 app.use('/api/income-sources', incomeSourceRoutes);
 app.use('/api/expense-categories', expenseCategoryRoutes);
 app.use('/api/reports', reportRoutes);
+app.use('/api/import', importNfeXmlRouter);
 
 // Error handling
 app.use(errorHandler);
